@@ -177,8 +177,9 @@ let _ = dispatch begin function
    | After_rules ->
        OCamlFind.after_rules ();
        Batteries.after_rules ();
+       (* flag ["ocaml"; "pp"; "pkg_lwt"] (A"pa_lwt.cmo"); *)
+       (* dep ["ocaml"; "ocamldep"; "pkg_lwt"] ["pa_lwt.cmo"]; *)
        Custom.after_rules ();
-
    | _ -> ()
 end
 
