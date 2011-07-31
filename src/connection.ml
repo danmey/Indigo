@@ -28,6 +28,15 @@ module Server = struct
 
   (* TODO: It's maybe a minimal server code that copies received data to stdout.
      Next step is convert it to use Lwt_unix in non blocking setting. *)
+
+  let echo (s,_) =
+    (* Lwt.bind c (fun (s,_) -> *)
+      let str = String.make 10 ' ' in
+      read s str 0 10 >>= fun n ->
+      match n with
+        | 0 -> return ()
+        | n -> ignore(write stdout str 0 n); return ()
+
   let start port receive =
       gethostname () >>= fun host_name ->
       gethostbyname host_name >>= fun entry ->
@@ -37,12 +46,13 @@ module Server = struct
       catch (fun () ->
         bind server_socket addr;
         listen server_socket 10;
-        let rec loop () =
-          Unix.sleep 1;
-          let client = restart_on_EINTR accept server_socket in
-          receive server_socket client;
-          loop () in
-        loop ()) (fun z -> close server_socket; fail z)
+        let rec loop clients =
+          choose [(accept server_socket >>= fun client ->
+                   loop (client :: clients));
+                  let read_clients = Lwt_unix.timeout 10.0 :: List.map echo clients in
+                  Lwt.pick read_clients >>= fun () -> loop clients]
+        in
+        loop []) (fun z -> close server_socket; fail z)
 
 end
 
