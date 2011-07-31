@@ -1,1 +1,2 @@
-<*.*>:	use_unix
+<*.*>:	use_unix, pkg_lablgtk2
+
