@@ -107,8 +107,8 @@ let main () =
   ignore(area#event#connect#button_press ~callback:(button_pressed area backing));
 
   area#event#add [`EXPOSURE; `LEAVE_NOTIFY; `BUTTON_PRESS; `POINTER_MOTION; `POINTER_MOTION_HINT];
-
-  let _ = GButton.button ~label:"Generate" ~packing:tool_vbox#add () in
+  
+  ignore(ObjectTree.create ~packing:tool_vbox#add ());
 
   (* .. And a quit button *)
   let quit_button = GButton.button ~label:"Quit" ~packing:tool_vbox#add () in
