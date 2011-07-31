@@ -29,13 +29,12 @@ module Server = struct
   (* TODO: It's maybe a minimal server code that copies received data to stdout.
      Next step is convert it to use Lwt_unix in non blocking setting. *)
 
-  let echo (s,_) =
-    (* Lwt.bind c (fun (s,_) -> *)
-      let str = String.make 10 ' ' in
-      read s str 0 10 >>= fun n ->
+  let read (s,_) =
+      let str = String.make 4096 ' ' in
+      read s str 0 4096 >>= fun n ->
       match n with
-        | 0 -> return ()
-        | n -> ignore(write stdout str 0 n); return ()
+        | 0 -> return None
+        | n -> return (Some (s, String.sub str 0 n))
 
   let start port =
       gethostname () >>= fun host_name ->
@@ -49,13 +48,27 @@ module Server = struct
         let rec loop clients =
           choose [(accept server_socket >>= fun client ->
                    loop (client :: clients));
-                  let read_clients = Lwt_unix.sleep 0.1 :: List.map echo clients in
-                  Lwt.pick read_clients >>= fun () -> loop clients]
+                  let read_clients = List.map read clients in
+                  Lwt_unix.sleep 0.1 >>= fun () -> Lwt.pick read_clients >>= fun str ->
+                  (match str with
+                    | Some (s', str) -> Lwt_util.iter (fun (s,_) ->
+                      (* TODO: Still don't understand why the data still arrive to random sockets 
+                         even if i check it was the same socket as read from *)
+                      (if (* s != s' *) true then 
+                          begin
+                            ignore(write s str 0 (String.length str));
+                            return ()
+                          end
+                        else return ())) clients
+                    | None -> return ()); loop clients]
         in
         loop []) (fun z -> close server_socket; fail z)
 
 end
 
+
+module Client = struct
+end
 
 let main () =
   let port = int_of_string Sys.argv.(1) in
