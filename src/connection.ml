@@ -37,7 +37,7 @@ module Server = struct
         | 0 -> return ()
         | n -> ignore(write stdout str 0 n); return ()
 
-  let start port receive =
+  let start port =
       gethostname () >>= fun host_name ->
       gethostbyname host_name >>= fun entry ->
       let host = entry.h_addr_list.(0) in
@@ -49,7 +49,7 @@ module Server = struct
         let rec loop clients =
           choose [(accept server_socket >>= fun client ->
                    loop (client :: clients));
-                  let read_clients = Lwt_unix.timeout 10.0 :: List.map echo clients in
+                  let read_clients = Lwt_unix.sleep 0.1 :: List.map echo clients in
                   Lwt.pick read_clients >>= fun () -> loop clients]
         in
         loop []) (fun z -> close server_socket; fail z)
@@ -59,17 +59,6 @@ end
 
 let main () =
   let port = int_of_string Sys.argv.(1) in
-  run (Server.start port
-    (fun _ c ->
-      Lwt.bind c (fun (s,_) ->
-      while true do
-        Unix.sleep 1;
-        let str = String.make 10 ' ' in
-        read s str 0 10 >>= fun n ->
-        match n with
-          | 0 -> return ()
-          | n -> ignore(write stdout str 0 n); return ()
-      done;
-      return ())))
+  run (Server.start port)
 ;;
 main()

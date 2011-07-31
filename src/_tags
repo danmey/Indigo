@@ -1,2 +1,2 @@
-<*.*>:	pkg_lablgtk2, pkg_lwt, pkg_unix, pkg_lwt.unix
+<*.*>:	use_lablgtk2, pkg_lablgtk2, pkg_lwt, pkg_unix, pkg_lwt.unix
 
