@@ -18,6 +18,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 --------------------------------------------------------------------------*)
 
 
+open Lwt
+
+
 (* Backing pixmap for drawing area *)
 let backing = ref (GDraw.pixmap ~width:200 ~height:200 ())
 
@@ -83,13 +86,28 @@ let create_text packing =
   let view = GText.view ~packing:scrolled_window#add () in
     view, scrolled_window#coerce
 
-let main () =
+let make_idle update () =
+  update ();
+  true
+    
+open Lwt
+open Lwt_unix
 
-  let width = 200 in
-  let height = 200 in
+let main () =
+  if Sys.argv.(1) = "-server" then
+    run (Connection.Server.start (int_of_string (Sys.argv.(2))))
+  else
+    let port = (int_of_string (Sys.argv.(1))) in
+    
+    let width = 200 in
+    let height = 200 in
+  
+  Lwt_glib.install ();
 
   let window = GWindow.window ~title:"Scribble" () in
+
   ignore(window#connect#destroy ~callback:GMain.Main.quit);
+
 
   (* Create a basic tool layout *)
   let main_paned = GPack.paned `HORIZONTAL ~packing:window#add () in
@@ -109,11 +127,14 @@ let main () =
   area#event#add [`EXPOSURE; `LEAVE_NOTIFY; `BUTTON_PRESS; `POINTER_MOTION; `POINTER_MOTION_HINT];
   
   ignore(ObjectTree.create ~packing:tool_vbox#add ());
+  let update, send = 
+    run (Connection.Client.connect port "localhost" 
+      ~receive:(function Connection.Quit -> print_endline "Received"; exit 0; return ())) in
 
   (* .. And a quit button *)
   let quit_button = GButton.button ~label:"Quit" ~packing:tool_vbox#add () in
-  ignore(quit_button#connect#clicked ~callback:window#destroy);
-
+  ignore(quit_button#connect#clicked ~callback:(fun () -> print_endline "Quit"; (send Connection.Quit);()));
+  ignore(GMain.Idle.add (make_idle update));
   window#show ();
 
   GMain.Main.main ()
