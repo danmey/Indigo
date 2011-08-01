@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 open Lwt
-
+open Lwt_chan
 
 (* Backing pixmap for drawing area *)
 let backing = ref (GDraw.pixmap ~width:200 ~height:200 ())
@@ -63,11 +63,11 @@ let button_pressed area backing ev =
   if GdkEvent.Button.button ev = 1 then (
     let x = int_of_float (GdkEvent.Button.x ev) in
     let y = int_of_float (GdkEvent.Button.y ev) in
-    draw_brush area backing x y
+    draw_brush area backing x y;
   );
   true
 
-let motion_notify area backing ev =
+let motion_notify send area backing ev =
   let (x, y) =
     if GdkEvent.Motion.is_hint ev
 	then area#misc#pointer
@@ -76,7 +76,7 @@ let motion_notify area backing ev =
   in
   let state = GdkEvent.Motion.state ev in
   if Gdk.Convert.test_modifier `BUTTON1 state
-  then draw_brush area backing x y;
+  then begin draw_brush area backing x y;  ignore(send (Connection.Brush (x,y))) end;
   true
 
 (* Create a scrolled text area that displays a "message" *)
@@ -86,14 +86,16 @@ let create_text packing =
   let view = GText.view ~packing:scrolled_window#add () in
     view, scrolled_window#coerce
 
-let make_idle update () =
-  update ();
-  true
-    
 open Lwt
 open Lwt_unix
 
-let main () =
+lwt () =
+  ignore (GMain.init ());
+
+  Lwt_glib.install  (); 
+
+  let waiter, wakener = Lwt.wait () in
+
   if Sys.argv.(1) = "-server" then
     run (Connection.Server.start (int_of_string (Sys.argv.(2))))
   else
@@ -102,12 +104,10 @@ let main () =
     let width = 200 in
     let height = 200 in
   
-  Lwt_glib.install ();
 
   let window = GWindow.window ~title:"Scribble" () in
 
-  ignore(window#connect#destroy ~callback:GMain.Main.quit);
-
+  let _ = window#connect#destroy ~callback:(fun () -> wakeup wakener ()) in
 
   (* Create a basic tool layout *)
   let main_paned = GPack.paned `HORIZONTAL ~packing:window#add () in
@@ -116,27 +116,41 @@ let main () =
 
   (* Create the drawing area *)
   let area = GMisc.drawing_area ~width ~height ~packing:main_paned#add () in
+  let receive = function
+    | Some v -> 
+      (match v with
+        | Connection.Quit -> print_endline "Received"; return ();
+        | Connection.Brush (x, y) -> draw_brush area backing x y; return ())
+    | None -> return () in
 
-  ignore(area#event#connect#expose ~callback:(expose area backing));
-  ignore(area#event#connect#configure ~callback:(configure window backing));
+  Connection.Client.connect port "localhost" >>= fun (in_ch, out_ch) ->
 
+    let rec loop _ =
+      Connection.read_val in_ch >>= fun cmd ->
+        receive cmd >>= fun  () ->
+        Lwt.bind (Lwt_unix.sleep 0.01) loop
+    in
+    let send cmd =
+      output_value out_ch cmd;
+      flush out_ch in
+    
+    Lwt.ignore_result (loop ());
+    
+    ignore(area#event#connect#expose ~callback:(expose area backing));
+    ignore(area#event#connect#configure ~callback:(configure window backing));
+    
   (* Event signals *)
-  ignore(area#event#connect#motion_notify ~callback:(motion_notify area backing));
-  ignore(area#event#connect#button_press ~callback:(button_pressed area backing));
+    ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
+    ignore(area#event#connect#button_press ~callback:(button_pressed area backing));
+    
+    area#event#add [`EXPOSURE; `LEAVE_NOTIFY; `BUTTON_PRESS; `POINTER_MOTION; `POINTER_MOTION_HINT];
+    
+    ignore(ObjectTree.create ~packing:tool_vbox#add ());
+    
+        (* .. And a quit button *)
+    let quit_button = GButton.button ~label:"Quit" ~packing:tool_vbox#add () in
+    return (quit_button#connect#clicked ~callback:(fun () -> print_endline "Sending Quit"; (send Connection.Quit);()));
+      
+      window#show ();
+      waiter
 
-  area#event#add [`EXPOSURE; `LEAVE_NOTIFY; `BUTTON_PRESS; `POINTER_MOTION; `POINTER_MOTION_HINT];
-  
-  ignore(ObjectTree.create ~packing:tool_vbox#add ());
-  let update, send = 
-    run (Connection.Client.connect port "localhost" 
-      ~receive:(function Connection.Quit -> print_endline "Received"; exit 0; return ())) in
-
-  (* .. And a quit button *)
-  let quit_button = GButton.button ~label:"Quit" ~packing:tool_vbox#add () in
-  ignore(quit_button#connect#clicked ~callback:(fun () -> print_endline "Quit"; (send Connection.Quit);()));
-  ignore(GMain.Idle.add (make_idle update));
-  window#show ();
-
-  GMain.Main.main ()
-
-let _ = Printexc.print main ()
