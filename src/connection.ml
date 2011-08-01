@@ -54,7 +54,7 @@ module Server = struct
                      (fun fd -> 
                        let in_ch = in_channel_of_descr fd in
                        read_val in_ch) clients in
-                  Lwt_unix.sleep 0.1 >>= fun () -> Lwt.pick read_clients >>= fun cmd ->
+                  Lwt.pick read_clients >>= fun cmd ->
                   Lwt_util.iter (fun fd ->
                    let out_ch = out_channel_of_descr fd in
                       (* TODO: Still don't understand why the data still arrive to random sockets 
@@ -79,8 +79,8 @@ module Client = struct
     open_connection addr >>= fun (in_ch, out_ch) ->
     let rec loop _ =
       read_val in_ch >>= fun cmd ->
-        receive cmd >>= fun  () ->
-        Lwt.bind (Lwt_unix.sleep 0.01) loop
+        receive cmd >>= loop (* fun  () -> *)
+        (* Lwt.bind (Lwt_unix.sleep 0.01) loop *)
     in
     Lwt.ignore_result (loop ());
     return (fun cmd -> output_value out_ch cmd)

@@ -59,11 +59,12 @@ let draw_brush (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) x y =
   !backing#rectangle ~x ~y ~width ~height ~filled:true ();
   area#misc#draw (Some update_rect)
 
-let button_pressed area backing ev =
+let button_pressed send area backing ev =
   if GdkEvent.Button.button ev = 1 then (
     let x = int_of_float (GdkEvent.Button.x ev) in
     let y = int_of_float (GdkEvent.Button.y ev) in
     draw_brush area backing x y;
+    ignore(send (Connection.Brush (x,y)))
   );
   true
 
@@ -131,7 +132,7 @@ lwt () =
     
   (* Event signals *)
     ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
-    ignore(area#event#connect#button_press ~callback:(button_pressed area backing));
+    ignore(area#event#connect#button_press ~callback:(button_pressed send area backing));
     
     area#event#add [`EXPOSURE; `LEAVE_NOTIFY; `BUTTON_PRESS; `POINTER_MOTION; `POINTER_MOTION_HINT];
     
