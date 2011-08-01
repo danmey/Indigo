@@ -61,11 +61,7 @@ module Server = struct
                          even if i check it was the same socket as read from *)
                     (if (* s != s' *) true then 
                         begin
-                            print_endline "Gotcha2";
-                            Pervasives.flush Pervasives.stdout;
                           match cmd with | Some cmd ->
-                            print_endline "Gotcha";
-                            Pervasives.flush Pervasives.stdout;
                             write out_ch cmd | None -> return ()
                         end
                      else return ())) clients; loop clients)]
@@ -76,16 +72,18 @@ end
 
 
 module Client = struct
-  let connect port host =
+  let connect ~port ~host ~receive =
      gethostbyname host >>= fun entry ->
     let host = entry.h_addr_list.(0) in
     let addr = ADDR_INET (host, port) in
-    open_connection addr;
-
-    (* let socket = socket PF_INET SOCK_STREAM 0 in *)
-    (* connect socket addr; *)
-    (* return socket *)
-
+    open_connection addr >>= fun (in_ch, out_ch) ->
+    let rec loop _ =
+      read_val in_ch >>= fun cmd ->
+        receive cmd >>= fun  () ->
+        Lwt.bind (Lwt_unix.sleep 0.01) loop
+    in
+    Lwt.ignore_result (loop ());
+    return (fun cmd -> output_value out_ch cmd)
 end
 
 

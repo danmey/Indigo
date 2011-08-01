@@ -119,22 +119,12 @@ lwt () =
   let receive = function
     | Some v -> 
       (match v with
-        | Connection.Quit -> print_endline "Received"; return ();
+        | Connection.Quit -> exit 0; return ();
         | Connection.Brush (x, y) -> draw_brush area backing x y; return ())
     | None -> return () in
 
-  Connection.Client.connect port "localhost" >>= fun (in_ch, out_ch) ->
-
-    let rec loop _ =
-      Connection.read_val in_ch >>= fun cmd ->
-        receive cmd >>= fun  () ->
-        Lwt.bind (Lwt_unix.sleep 0.01) loop
-    in
-    let send cmd =
-      output_value out_ch cmd;
-      flush out_ch in
+  Connection.Client.connect ~port ~host:"localhost" ~receive >>= fun send ->
     
-    Lwt.ignore_result (loop ());
     
     ignore(area#event#connect#expose ~callback:(expose area backing));
     ignore(area#event#connect#configure ~callback:(configure window backing));
@@ -149,7 +139,7 @@ lwt () =
     
         (* .. And a quit button *)
     let quit_button = GButton.button ~label:"Quit" ~packing:tool_vbox#add () in
-    return (quit_button#connect#clicked ~callback:(fun () -> print_endline "Sending Quit"; (send Connection.Quit);()));
+    return (quit_button#connect#clicked ~callback:(fun () -> (send Connection.Quit);()));
       
       window#show ();
       waiter
