@@ -23,6 +23,7 @@ open Lwt_chan
 
 (* Backing pixmap for drawing area *)
 let backing = ref (GDraw.pixmap ~width:200 ~height:200 ())
+let dice_image = GdkPixbuf.from_file "../resources/images/g6-1.png"
 
 (* Create a new backing pixmap of the appropriate size *)
 let configure window backing ev =
@@ -59,6 +60,20 @@ let draw_brush (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) x y =
   !backing#rectangle ~x ~y ~width ~height ~filled:true ();
   area#misc#draw (Some update_rect)
 
+let font = lazy (Gdk.Font.load "Courier New")
+
+(* Draw a rectangle on the screen *)
+let draw_dice (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) x y =
+  let x = x - 5 in
+  let y = y - 5 in
+  let width = 10 in
+  let height = 10 in
+  let update_rect = Gdk.Rectangle.create ~x ~y ~width ~height in
+  !backing#set_foreground `BLACK;
+  !backing#put_pixbuf ~x ~y dice_image;
+  (* !backing#string ~x ~y "ala ma kota" ~font:(Lazy.force font) ; *)
+  area#misc#draw (Some update_rect)
+
 let button_pressed send area backing ev =
   if GdkEvent.Button.button ev = 1 then (
     let x = int_of_float (GdkEvent.Button.x ev) in
@@ -92,15 +107,15 @@ let drag_data_received context ~x ~y data ~info ~time =
   match info with _ -> Printf.printf "Data: %d: %s\n " info data#data; flush stdout;
     context # finish ~success:true ~del:true ~time
 
-let drag_drop (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) (src_widget : GTree.view) (context : GObj.drag_context) ~x ~y ~time =
+let drag_drop  (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) (src_widget : GTree.view) (context : GObj.drag_context) ~x ~y ~time =
   let open Pervasives in
-      let () = src_widget#drag#get_data ~target:"INTEGER"  ~time context in
-      draw_brush area backing x y;
+      let a = src_widget#drag#get_data ~target:"INTEGER"  ~time context in
+      draw_dice area backing x y;
       true
         
-let drag_data_get =
+let drag_data_get drag_context (selection_context : GObj.selection_context) ~info ~time =
     let open Pervasives in
-        (fun drag_context selection_context ~info ~time -> print_endline "Dst Get!"; flush stdout)
+        ()
 open Lwt
 open Lwt_unix
 
