@@ -49,14 +49,14 @@ module Server = struct
         listen server_socket 10;
         let rec loop clients =
           choose [(accept server_socket >>= fun (fd,_) ->
-                   loop (fd :: clients));
+                   let out_ch = out_channel_of_descr fd in
+                   let in_ch = in_channel_of_descr fd in
+                   loop ((in_ch, out_ch) :: clients));
                   (let read_clients = List.map 
-                     (fun fd -> 
-                       let in_ch = in_channel_of_descr fd in
+                     (fun (in_ch, out_ch) -> 
                        read_val in_ch) clients in
                   Lwt.pick read_clients >>= fun cmd ->
-                  Lwt_util.iter (fun fd ->
-                   let out_ch = out_channel_of_descr fd in
+                  Lwt_util.iter (fun (_,out_ch) ->
                       (* TODO: Still don't understand why the data still arrive to random sockets 
                          even if i check it was the same socket as read from *)
                     (if (* s != s' *) true then 
