@@ -39,32 +39,42 @@ module Server = struct
     try f x with Unix.Unix_error (Unix.EINTR, _, _) -> restart_on_EINTR f x
 
   let start port =
-      gethostname () >>= fun host_name ->
-      gethostbyname host_name >>= fun entry ->
-      let host = entry.h_addr_list.(0) in
-      let addr = ADDR_INET (host, port) in
-      let server_socket = socket PF_INET SOCK_STREAM 0 in
+    lwt host_name = gethostname () in
+    lwt entry = gethostbyname host_name in
+    let host = entry.h_addr_list.(0) in
+    let addr = ADDR_INET (host, port) in
+    let server_socket = socket PF_INET SOCK_STREAM 0 in
       catch (fun () ->
         bind server_socket addr;
         listen server_socket 10;
         let rec loop clients =
-          choose [(accept server_socket >>= fun (fd,_) ->
-                   let out_ch = out_channel_of_descr fd in
-                   let in_ch = in_channel_of_descr fd in
-                   loop ((in_ch, out_ch) :: clients));
-                  (let read_clients = List.map 
-                     (fun (in_ch, out_ch) -> 
-                       read_val in_ch) clients in
-                  Lwt.pick read_clients >>= fun cmd ->
-                  Lwt_util.iter (fun (_,out_ch) ->
-                      (* TODO: Still don't understand why the data still arrive to random sockets 
+          choose [
+            begin
+              lwt (fd,_) = accept server_socket in
+              let out_ch = out_channel_of_descr fd in
+              let in_ch = in_channel_of_descr fd in
+              loop ((in_ch, out_ch) :: clients)
+            end;
+
+            begin
+              let read_clients = 
+                List.map 
+                  (fun (in_ch, out_ch) -> 
+                    read_val in_ch) clients 
+              in
+              lwt cmd = Lwt.pick read_clients in
+              Lwt_util.iter (fun (_,out_ch) ->
+                    (* TODO: Still don't understand why the data still arrive to random sockets 
                          even if i check it was the same socket as read from *)
-                    (if (* s != s' *) true then 
-                        begin
-                          match cmd with | Some cmd ->
-                            write out_ch cmd | None -> return ()
-                        end
-                     else return ())) clients; loop clients)]
+                (if (* s != s' *) true then 
+                    begin
+                      match cmd with 
+                        | Some cmd ->
+                          write out_ch cmd 
+                        | None -> return ()
+                    end
+                     else return ())) clients; loop clients
+            end]
         in
         loop []) (fun z -> close server_socket; fail z)
 
@@ -73,14 +83,14 @@ end
 
 module Client = struct
   let connect ~port ~host ~receive =
-     gethostbyname host >>= fun entry ->
-    let host = entry.h_addr_list.(0) in
-    let addr = ADDR_INET (host, port) in
-    open_connection addr >>= fun (in_ch, out_ch) ->
-    let rec loop _ =
-      read_val in_ch >>= fun cmd ->
-        receive cmd >>= loop (* fun  () -> *)
-        (* Lwt.bind (Lwt_unix.sleep 0.01) loop *)
+     lwt entry = gethostbyname host in
+     let host = entry.h_addr_list.(0) in
+     let addr = ADDR_INET (host, port) in
+     lwt in_ch, out_ch = open_connection addr in
+     let rec loop () =
+       lwt cmd = read_val in_ch in
+       lwt () = receive cmd in
+       loop ()
     in
     Lwt.ignore_result (loop ());
     return (fun cmd -> output_value out_ch cmd)
