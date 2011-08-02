@@ -37,7 +37,7 @@ let create_and_fill_model data =
   ];
   treestore
  
-let create ~packing () =
+let create ~packing ~(canvas:GMisc.drawing_area) () =
   let view = GTree.view ~packing () in
 
   (* Column #1 *)
@@ -73,6 +73,6 @@ let create ~packing () =
   let model = create_and_fill_model () in
   view#set_model (Some (model#coerce));
 
-  view#selection#set_mode `NONE;
+  (* view#selection#set_mode `NONE; *)
   view
 

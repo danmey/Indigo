@@ -87,6 +87,20 @@ let create_text packing =
   let view = GText.view ~packing:scrolled_window#add () in
     view, scrolled_window#coerce
 
+let drag_data_received context ~x ~y data ~info ~time =
+  let open Pervasives in
+  match info with _ -> Printf.printf "Data: %d: %s\n " info data#data; flush stdout;
+    context # finish ~success:true ~del:true ~time
+
+let drag_drop (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) (src_widget : GTree.view) (context : GObj.drag_context) ~x ~y ~time =
+  let open Pervasives in
+      let () = src_widget#drag#get_data ~target:"INTEGER"  ~time context in
+      draw_brush area backing x y;
+      true
+        
+let drag_data_get =
+    let open Pervasives in
+        (fun drag_context selection_context ~info ~time -> print_endline "Dst Get!"; flush stdout)
 open Lwt
 open Lwt_unix
 
@@ -136,8 +150,21 @@ lwt () =
     
     area#event#add [`EXPOSURE; `LEAVE_NOTIFY; `BUTTON_PRESS; `POINTER_MOTION; `POINTER_MOTION_HINT];
     
-    ignore(ObjectTree.create ~packing:tool_vbox#add ());
-    
+    let view = ObjectTree.create ~packing:tool_vbox#add ~canvas:area () in
+        let open Pervasives in
+
+    let target_entry = { Gtk.target= "INTEGER"; Gtk.flags= []; Gtk.info=123 } in
+    view#drag#source_set ~modi:[`BUTTON1] ~actions:[`COPY] [target_entry];
+    area#drag#dest_set ~flags:[`HIGHLIGHT;`MOTION] ~actions:[`COPY] [target_entry];
+    area#drag#connect#data_received ~callback:drag_data_received;
+    area#drag#connect#leave ~callback:(fun context ~time -> print_endline "Leave!"; flush stdout);
+    area#drag#connect#motion ~callback:(fun context ~x ~y ~time -> print_endline "Motion!"; flush stdout; false);
+    area#drag#connect#drop ~callback:(drag_drop area backing view);
+    view#drag#connect#data_get  ~callback:drag_data_get;
+    view#drag#connect#data_delete  ~callback:(fun context -> print_endline "Data Delete!"; flush stdout);
+    view#drag#connect#beginning  ~callback:(fun context -> print_endline "Data Begining!"; flush stdout);
+    view#drag#connect#ending  ~callback:(fun context -> print_endline "Data End!"; flush stdout);
+
         (* .. And a quit button *)
     let quit_button = GButton.button ~label:"Quit" ~packing:tool_vbox#add () in
     return (quit_button#connect#clicked ~callback:(fun () -> (send Connection.Quit);()));
