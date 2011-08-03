@@ -1,85 +1,81 @@
-class tile ~x ~y = object  (self:'self)
-    
-  val mutable dragged = false
-  val mutable pos_x = x
-  val mutable pos_y = y
-  val mutable width = 0
-  val mutable height = 0
-  val mutable drag_x = 0
-  val mutable drag_y = 0
+(* TODO: This file needs to be rewritten to get rid of object orientatoen: EDIT: Progress. *)
 
-  method draw (pixmap : GDraw.pixmap) = ()
-  method click = ()
-
-  method is_in ~x ~y =     
-    let xt, yt = self # position in
-    let w, h = self # size in
-    x >= xt && x < xt + w && y >= yt && y < yt + h
-
-  method button_down ~x ~y =
-    if self # is_in ~x ~y then
-      begin
-        self # click; dragged <- true;
-        let tile_x, tile_y = x - pos_x,  y - pos_y in
-        drag_x <- tile_x;
-        drag_y <- tile_y
-      end
-  method button_up = 
-    if dragged then self # drop (); dragged <- false
-  method motion ~x ~y = 
-    if self # is_in ~x ~y then
-      begin
-        if dragged 
-        then begin 
-          pos_x <- x-drag_x; pos_y <- y-drag_y
-        end
-      end
-  method set_position ~x ~y = pos_x <-x; pos_x <-y;
-  method position : (int * int) = pos_x, pos_y
-  method size = width, height
-  method drag_start () = dragged <- true
-  method drag_stop () = dragged <- false
-  method drop () = ()
+module type GRAPHICS_BACKEND = sig
+  type bitmap
+  type gc
+  val draw_bitmap : pos:(int * int) -> gc -> bitmap -> unit
+  val bitmap_of_file : fn:string -> bitmap
+  val size_of_bitmap : bitmap -> int*int
 end
 
+module Make(B : GRAPHICS_BACKEND) = struct
 
-let dice ~x ~y = object (self:'self)
-  inherit tile ~x ~y as super
-  val image = GdkPixbuf.from_file "../resources/images/g6-1.png"
-  initializer
-    width <- GdkPixbuf.get_width image;
-    height <- GdkPixbuf.get_height image
+  type t  = { width : int;
+              height : int;
+              pos : (int * int);
+              drag: drag option;
+              graphics: graphics option;
+            }
 
-  method draw pixmap =
-    let x, y = super # position in
-    let x = x - 5 in
-    let y = y - 5 in
-    let width = 10 in
-    let height = 10 in
-    let update_rect = Gdk.Rectangle.create ~x ~y ~width ~height in
-    pixmap#put_pixbuf ~x ~y image;
+  and drag = { dragged : bool;
+               drag_x : int;
+               drag_y : int }
 
-end
+  and graphics = { bitmap: B.bitmap}
 
+  let rec is_in t ~x ~y =     
+    let xt, yt = t.pos in
+    x >= xt && x < xt + t.width && y >= yt && y < yt + t.height
 
-let canvas = object
-  val mutable tiles : (int*tile) list = []
+  and button_pressed t ~x ~y =
+    if is_in t ~x ~y then
+      let drag = match t.drag with
+        | Some drag ->
+          let pos_x, pos_y = t.pos in
+          let drag_x, drag_y = x - pos_x,  y - pos_y in
+          Some { dragged = true; drag_x; drag_y }
+        | None -> None in
+      { t with drag }
+    else t
 
-  method add t =
-    tiles <- (0, t) :: tiles
+  and button_released t ~x ~y =
+    if is_in t ~x ~y then
+      let drag = match t.drag with
+        | Some drag ->
+          Some { drag with dragged = false; }
+        | None -> None in
+      { t with drag }
+    else t
       
-  method draw (backing:GDraw.pixmap) =
-    List.iter (fun (_,t) -> t # draw backing) tiles
+  and motion t ~x ~y = 
+    if is_in t ~x ~y then
+      match t.drag with
+        | Some d ->
+          if d.dragged then
+            { t with pos= (x-d.drag_x, y-d.drag_y) }
+          else t
+        | None -> t
+    else t
+        
+  and default_drag = { dragged = false; drag_x = 0; drag_y = 0 }
 
-  method button_pressed ~x ~y =
-    List.iter (fun (_,t) -> t # button_down ~x ~y) tiles
+(* TODO: Move somewher else *)
+  and dice ~x ~y =
+    let fn = "resources/images/g6-1.png" in
+    let bitmap = B.bitmap_of_file ~fn in
+    let width, height = B.size_of_bitmap bitmap in
+    let pos = x, y in
+    { width;
+      height;
+      pos;
+      drag = Some default_drag;
+      graphics = Some { bitmap = bitmap } }
 
-  method button_release =
-    List.iter (fun (_,t) -> t # button_up) tiles
-
-  method motion_notify ~x ~y =
-    List.iter (fun (_,t) -> t # motion ~x ~y) tiles
+  and draw canvas t =
+    match t.graphics with
+      | Some g -> B.draw_bitmap ~pos:t.pos canvas g.bitmap
+      |  None -> ()
 
 
 end
-    
+

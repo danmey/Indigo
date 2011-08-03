@@ -24,7 +24,7 @@ open Lwt_chan
 type command =
   | Quit
   | Brush of int * int
-
+  | AddTile 
 let write out_ch (cmd : command) =
     output_value out_ch cmd;
     flush out_ch
