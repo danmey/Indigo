@@ -24,6 +24,7 @@ open Lwt_chan
 (* Backing pixmap for drawing area *)
 let backing = ref (GDraw.pixmap ~width:200 ~height:200 ())
 let dice_image = GdkPixbuf.from_file "../resources/images/g6-1.png"
+let tiles = Queue.create ()
 
 (* Create a new backing pixmap of the appropriate size *)
 let configure window backing ev =
@@ -63,24 +64,43 @@ let draw_brush (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) x y =
 let font = lazy (Gdk.Font.load "Courier New")
 
 (* Draw a rectangle on the screen *)
-let draw_dice (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) x y =
-  let x = x - 5 in
-  let y = y - 5 in
-  let width = 10 in
-  let height = 10 in
-  let update_rect = Gdk.Rectangle.create ~x ~y ~width ~height in
-  !backing#set_foreground `BLACK;
-  !backing#put_pixbuf ~x ~y dice_image;
-  (* !backing#string ~x ~y "ala ma kota" ~font:(Lazy.force font) ; *)
-  area#misc#draw (Some update_rect)
+(* let draw_dice (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) x y = *)
+(*   let x = x - 5 in *)
+(*   let y = y - 5 in *)
+(*   let width = 10 in *)
+(*   let height = 10 in *)
+(*   let update_rect = Gdk.Rectangle.create ~x ~y ~width ~height in *)
+(*   !backing#set_foreground `BLACK; *)
+(*   !backing#put_pixbuf ~x ~y dice_image; *)
+(*   (\* !backing#string ~x ~y "ala ma kota" ~font:(Lazy.force font) ; *\) *)
+(*   area#misc#draw (Some update_rect) *)
 
+let iter_tiles ~x ~y f =
+  Queue.iter (fun t ->
+    f t) tiles
+    
 let button_pressed send area backing ev =
-  if GdkEvent.Button.button ev = 1 then (
-    let x = int_of_float (GdkEvent.Button.x ev) in
-    let y = int_of_float (GdkEvent.Button.y ev) in
-    draw_brush area backing x y;
-    ignore(send (Connection.Brush (x,y)))
-  );
+  if GdkEvent.Button.button ev = 1 then
+    begin
+      let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
+      iter_tiles x y
+        (fun t -> t # button_down ~x ~y)
+    end;
+  true
+
+let button_release send area backing ev =
+  if GdkEvent.Button.button ev = 1 then
+    begin
+      let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
+      iter_tiles (int_of_float (GdkEvent.Button.x ev)) (int_of_float (GdkEvent.Button.y ev))
+        (fun t -> t # button_up)
+    end;
+  true
+
+let motion_notify send area backing ev =
+  Queue.iter (fun t -> 
+    let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
+    t # motion ~x ~y) tiles;
   true
 
 let motion_notify send area backing ev =
@@ -90,9 +110,13 @@ let motion_notify send area backing ev =
 	else
       (int_of_float (GdkEvent.Motion.x ev), int_of_float (GdkEvent.Motion.y ev))
   in
+
+  Queue.iter (fun t -> 
+    t # motion ~x ~y) tiles;
+
   let state = GdkEvent.Motion.state ev in
   if Gdk.Convert.test_modifier `BUTTON1 state
-  then begin draw_brush area backing x y;  ignore(send (Connection.Brush (x,y))) end;
+  then begin ignore(send (Connection.Brush (x,y))) end;
   true
 
 (* Create a scrolled text area that displays a "message" *)
@@ -107,17 +131,30 @@ let drag_data_received context ~x ~y data ~info ~time =
   match info with _ -> Printf.printf "Data: %d: %s\n " info data#data; flush stdout;
     context # finish ~success:true ~del:true ~time
 
+let draw_tiles (area:GMisc.drawing_area) =
+  Queue.iter (fun t -> t # draw !backing) tiles;
+  let x,y = 0,0 in
+  let rect = area # misc # allocation in
+  let width, height = rect.Gtk.width, rect.Gtk.height in
+  let update_rect = Gdk.Rectangle.create ~x ~y ~width ~height in
+  area#misc#draw (Some update_rect)
+
 let drag_drop  (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) (src_widget : GTree.view) (context : GObj.drag_context) ~x ~y ~time =
   let open Pervasives in
       let a = src_widget#drag#get_data ~target:"INTEGER"  ~time context in
-      draw_dice area backing x y;
+      Queue.add (Tile.dice ~x ~y) tiles;
+      draw_tiles area;
       true
+
         
 let drag_data_get drag_context (selection_context : GObj.selection_context) ~info ~time =
     let open Pervasives in
         ()
 open Lwt
 open Lwt_unix
+let idle area () =
+  draw_tiles area;
+  true
 
 lwt () =
   ignore (GMain.init ());
@@ -150,10 +187,10 @@ lwt () =
     | Some v -> 
       (match v with
         | Connection.Quit -> exit 0; return ();
-        | Connection.Brush (x, y) -> draw_brush area backing x y; return ())
+        | Connection.Brush (x, y) -> return ());(* draw_brush area backing x y; return ()) *)
     | None -> return () in
 
-  Connection.Client.connect ~port ~host:"localhost" ~receive >>= fun send ->
+  lwt send = Connection.Client.connect ~port ~host:"localhost" ~receive in
     
     
     ignore(area#event#connect#expose ~callback:(expose area backing));
@@ -162,8 +199,10 @@ lwt () =
   (* Event signals *)
     ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
     ignore(area#event#connect#button_press ~callback:(button_pressed send area backing));
+    ignore(area#event#connect#button_release ~callback:(button_release send area backing));
+    ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
     
-    area#event#add [`EXPOSURE; `LEAVE_NOTIFY; `BUTTON_PRESS; `POINTER_MOTION; `POINTER_MOTION_HINT];
+    area#event#add [`EXPOSURE; `LEAVE_NOTIFY; `BUTTON_PRESS; `BUTTON_RELEASE; `POINTER_MOTION; `POINTER_MOTION_HINT;];
     
     let view = ObjectTree.create ~packing:tool_vbox#add ~canvas:area () in
         let open Pervasives in
@@ -182,8 +221,12 @@ lwt () =
 
         (* .. And a quit button *)
     let quit_button = GButton.button ~label:"Quit" ~packing:tool_vbox#add () in
-    return (quit_button#connect#clicked ~callback:(fun () -> (send Connection.Quit);()));
-      
-      window#show ();
-      waiter
+    let _ = GMain.Idle.add (idle area) in
+    ignore(quit_button#connect#clicked ~callback:(fun () -> (ignore(send Connection.Quit))));
+    (* let rec update_canvas () = *)
+    (*   Lwt.bind (draw_tiles !backing) update_canvas *)
+    (* in *)
+    (* lwt () = update_canvas() in *)
+    ignore(window#show ());
+    waiter
 
