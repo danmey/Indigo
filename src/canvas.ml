@@ -24,7 +24,6 @@ open Lwt_chan
 (* Backing pixmap for drawing area *)
 let backing = ref (GDraw.pixmap ~width:200 ~height:200 ())
 let dice_image = GdkPixbuf.from_file "../resources/images/g6-1.png"
-let tiles = Queue.create ()
 
 (* Create a new backing pixmap of the appropriate size *)
 let configure window backing ev =
@@ -75,16 +74,11 @@ let font = lazy (Gdk.Font.load "Courier New")
 (*   (\* !backing#string ~x ~y "ala ma kota" ~font:(Lazy.force font) ; *\) *)
 (*   area#misc#draw (Some update_rect) *)
 
-let iter_tiles ~x ~y f =
-  Queue.iter (fun t ->
-    f t) tiles
-    
 let button_pressed send area backing ev =
   if GdkEvent.Button.button ev = 1 then
     begin
       let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
-      iter_tiles x y
-        (fun t -> t # button_down ~x ~y)
+      Tile.canvas # button_pressed ~x ~y
     end;
   true
 
@@ -92,15 +86,8 @@ let button_release send area backing ev =
   if GdkEvent.Button.button ev = 1 then
     begin
       let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
-      iter_tiles (int_of_float (GdkEvent.Button.x ev)) (int_of_float (GdkEvent.Button.y ev))
-        (fun t -> t # button_up)
+      Tile.canvas # button_release
     end;
-  true
-
-let motion_notify send area backing ev =
-  Queue.iter (fun t -> 
-    let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
-    t # motion ~x ~y) tiles;
   true
 
 let motion_notify send area backing ev =
@@ -111,8 +98,7 @@ let motion_notify send area backing ev =
       (int_of_float (GdkEvent.Motion.x ev), int_of_float (GdkEvent.Motion.y ev))
   in
 
-  Queue.iter (fun t -> 
-    t # motion ~x ~y) tiles;
+  Tile.canvas # motion_notify ~x ~y;
 
   let state = GdkEvent.Motion.state ev in
   if Gdk.Convert.test_modifier `BUTTON1 state
@@ -131,19 +117,12 @@ let drag_data_received context ~x ~y data ~info ~time =
   match info with _ -> Printf.printf "Data: %d: %s\n " info data#data; flush stdout;
     context # finish ~success:true ~del:true ~time
 
-let draw_tiles (area:GMisc.drawing_area) =
-  Queue.iter (fun t -> t # draw !backing) tiles;
-  let x,y = 0,0 in
-  let rect = area # misc # allocation in
-  let width, height = rect.Gtk.width, rect.Gtk.height in
-  let update_rect = Gdk.Rectangle.create ~x ~y ~width ~height in
-  area#misc#draw (Some update_rect)
 
-let drag_drop  (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) (src_widget : GTree.view) (context : GObj.drag_context) ~x ~y ~time =
+let drag_drop (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) (src_widget : GTree.view) (context : GObj.drag_context) ~x ~y ~time =
   let open Pervasives in
       let a = src_widget#drag#get_data ~target:"INTEGER"  ~time context in
-      Queue.add (Tile.dice ~x ~y) tiles;
-      draw_tiles area;
+      Tile.canvas#add (Tile.dice ~x ~y);
+      Tile.canvas#draw !backing;
       true
 
         
@@ -152,8 +131,15 @@ let drag_data_get drag_context (selection_context : GObj.selection_context) ~inf
         ()
 open Lwt
 open Lwt_unix
-let idle area () =
-  draw_tiles area;
+let idle (area:GMisc.drawing_area) () =
+  let x,y = 0,0 in
+  let rect = area # misc # allocation in
+  let width, height = rect.Gtk.width, rect.Gtk.height in
+  let update_rect = Gdk.Rectangle.create ~x ~y ~width ~height in
+  !backing#set_foreground `WHITE;
+  !backing#rectangle ~x:0 ~y:0 ~width ~height ~filled:true ();
+  Tile.canvas#draw !backing;
+  area#misc#draw (Some update_rect);
   true
 
 lwt () =

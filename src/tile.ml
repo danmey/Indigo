@@ -61,3 +61,25 @@ let dice ~x ~y = object (self:'self)
 
 end
 
+
+let canvas = object
+  val mutable tiles : (int*tile) list = []
+
+  method add t =
+    tiles <- (0, t) :: tiles
+      
+  method draw (backing:GDraw.pixmap) =
+    List.iter (fun (_,t) -> t # draw backing) tiles
+
+  method button_pressed ~x ~y =
+    List.iter (fun (_,t) -> t # button_down ~x ~y) tiles
+
+  method button_release =
+    List.iter (fun (_,t) -> t # button_up) tiles
+
+  method motion_notify ~x ~y =
+    List.iter (fun (_,t) -> t # motion ~x ~y) tiles
+
+
+end
+    
