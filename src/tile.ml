@@ -6,6 +6,8 @@ module type GRAPHICS_BACKEND = sig
   val draw_bitmap : pos:(int * int) -> gc -> bitmap -> unit
   val bitmap_of_file : fn:string -> bitmap
   val size_of_bitmap : bitmap -> int*int
+  val bitmap : string -> bitmap
+  val load_bitmap : string -> bitmap
 end
 
 module Make(B : GRAPHICS_BACKEND) = struct
@@ -14,14 +16,13 @@ module Make(B : GRAPHICS_BACKEND) = struct
               height : int;
               pos : (int * int);
               drag: drag option;
-              graphics: graphics option;
+              graphics : string;
             }
 
   and drag = { dragged : bool;
                drag_x : int;
-               drag_y : int }
+               drag_y : int } with sexp
 
-  and graphics = { bitmap: B.bitmap}
 
   let rec is_in t ~x ~y =     
     let xt, yt = t.pos in
@@ -65,17 +66,18 @@ module Make(B : GRAPHICS_BACKEND) = struct
     let bitmap = B.bitmap_of_file ~fn in
     let width, height = B.size_of_bitmap bitmap in
     let pos = x, y in
+    B.load_bitmap fn;
     { width;
       height;
       pos;
       drag = Some default_drag;
-      graphics = Some { bitmap = bitmap } }
+      graphics = fn;
+    }
 
   and draw canvas t =
-    match t.graphics with
-      | Some g -> B.draw_bitmap ~pos:t.pos canvas g.bitmap
-      |  None -> ()
+    B.draw_bitmap ~pos:t.pos canvas (B.bitmap t.graphics)
 
-
+  and print t =
+    Printf.printf "width: %d height: %d pos: (%d %d)" t.width t.height (fst t.pos) (snd t.pos)
 end
 

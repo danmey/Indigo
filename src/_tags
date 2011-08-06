@@ -1,7 +1,8 @@
-<*>: syntax_camlp4o, pkg_lwt, pkg_lwt.unix, pkg_lwt.syntax, pkg_lwt.syntax.log
+<*>: syntax_camlp4o, pkg_lwt, pkg_lwt.unix, pkg_lwt.syntax, pkg_lwt.syntax.log, pkg_sexplib, pkg_sexplib.syntax
 <canvas.*>: pkg_lwt.glib, pkg_lablgtk2
 <mainFrame.*>: pkg_lwt.glib, pkg_lablgtk2
 <objectTree.*>: pkg_lwt.glib, pkg_lablgtk2
 <tile.*>: pkg_lwt.glib, pkg_lablgtk2
+<connection.*>: pkg_sexplib, pkg_lwt.glib, pkg_lablgtk2
 
 

@@ -1,6 +1,6 @@
 (*----------------------------------------------------------------------------
   server.ml - Client server code.
-  Copyright (C) 2011 Wojciech Meyer, Filip Łuszczak
+  Copyright (C) 2011 Wojciech Meyer
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,16 +21,13 @@ open Lwt
 open Lwt_unix
 open Lwt_chan
 
-type command =
-  | Quit
-  | Brush of int * int
-  | AddTile 
-let write out_ch (cmd : command) =
-    output_value out_ch cmd;
+module Make(C : sig type command end) = struct
+let write out_ch (cmd : C.command) =
+    lwt () = output_value out_ch cmd in
     flush out_ch
 
-let read_val in_ch : command option Lwt.t =
-      input_value in_ch >>= fun (v : command) -> return (Some v)
+let read_val in_ch : C.command option Lwt.t =
+      input_value in_ch >>= fun (v : C.command) -> return (Some v)
 
     
 module Server = struct
@@ -96,8 +93,4 @@ module Client = struct
     return (fun cmd -> output_value out_ch cmd)
 end
 
-
-let main () =
-  let port = int_of_string Sys.argv.(1) in
-  run (Server.start port)
-;;
+end

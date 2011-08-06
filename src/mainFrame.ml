@@ -25,6 +25,8 @@ module GtkBackend = struct
   type bitmap = GdkPixbuf.pixbuf
   type gc = GDraw.pixmap
 
+
+  let resources = Hashtbl.create 137
   let draw_bitmap ~pos:(x,y) (gc:gc) (bitmap:bitmap) =
     gc#put_pixbuf ~x ~y bitmap; ()
 
@@ -32,6 +34,10 @@ module GtkBackend = struct
 
   let size_of_bitmap bitmap =
     GdkPixbuf.get_width bitmap, GdkPixbuf.get_height bitmap
+
+  let load_bitmap fn = let bmp = bitmap_of_file ~fn in Hashtbl.add resources fn bmp; bmp
+  let bitmap name = try Hashtbl.find resources name with Not_found -> let bmp = load_bitmap name in bmp
+
 end
 
 module Canvas = Canvas.Make(GtkBackend)
@@ -39,7 +45,19 @@ module Tile = Tile.Make(GtkBackend)
 
 (* Backing pixmap for drawing area *)
 let backing = ref (GDraw.pixmap ~width:200 ~height:200 ())
-let canvas = ref (Canvas.create ())
+let the_canvas = ref (Canvas.create ())
+let canvas_mutex = Lwt_mutex.create ()
+let canvas f =
+  Lwt_mutex.with_lock canvas_mutex (fun () ->
+    the_canvas := f !the_canvas;
+    return ())
+
+let set_canvas c =
+  Lwt_mutex.with_lock canvas_mutex (fun () ->
+    Canvas.print c;
+    ignore(the_canvas := c);
+    return ())
+    
 (* Create a new backing pixmap of the appropriate size *)
 let configure window backing ev =
   let width = GdkEvent.Configure.width ev in
@@ -93,7 +111,7 @@ let button_pressed send area backing ev =
   if GdkEvent.Button.button ev = 1 then
     begin
       let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
-      canvas := Canvas.button_pressed !canvas ~x ~y
+      Lwt.ignore_result (canvas (fun c -> Canvas.button_pressed c ~x ~y))
     end;
   true
 
@@ -101,7 +119,7 @@ let button_release send area backing ev =
   if GdkEvent.Button.button ev = 1 then
     begin
       let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
-      canvas := Canvas.button_released !canvas ~x ~y
+      Lwt.ignore_result (canvas (fun c -> Canvas.button_released c ~x ~y))
     end;
   true
 
@@ -112,13 +130,10 @@ let motion_notify send area backing ev =
 	else
       (int_of_float (GdkEvent.Motion.x ev), int_of_float (GdkEvent.Motion.y ev))
   in
+  Lwt.ignore_result (canvas (fun c -> Canvas.motion c ~x ~y));
 
-  canvas := Canvas.motion !canvas ~x ~y;
-
-  let state = GdkEvent.Motion.state ev in
-  if Gdk.Convert.test_modifier `BUTTON1 state
-  then begin ignore(send (Connection.Brush (x,y))) end;
   true
+
 
 (* Create a scrolled text area that displays a "message" *)
 let create_text packing =
@@ -136,8 +151,8 @@ let drag_data_received context ~x ~y data ~info ~time =
 let drag_drop (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) (src_widget : GTree.view) (context : GObj.drag_context) ~x ~y ~time =
   let open Pervasives in
       let a = src_widget#drag#get_data ~target:"INTEGER"  ~time context in
-      canvas := Canvas.add !canvas (Tile.dice ~x ~y);
-      Canvas.draw !canvas !backing;
+
+      Lwt.ignore_result (canvas (fun c -> Canvas.add c (Tile.dice ~x ~y)));
       true
 
         
@@ -146,16 +161,21 @@ let drag_data_get drag_context (selection_context : GObj.selection_context) ~inf
         ()
 open Lwt
 open Lwt_unix
-let idle (area:GMisc.drawing_area) () =
+module Connection = Connection.Make(Canvas.Protocol)
+
+
+let rec update_display send (area:GMisc.drawing_area) () =
+  Pervasives.flush Pervasives.stdout;
   let x,y = 0,0 in
   let rect = area # misc # allocation in
   let width, height = rect.Gtk.width, rect.Gtk.height in
   let update_rect = Gdk.Rectangle.create ~x ~y ~width ~height in
   !backing#set_foreground `WHITE;
   !backing#rectangle ~x:0 ~y:0 ~width ~height ~filled:true ();
-  Canvas.draw !canvas !backing;
+  Lwt.ignore_result (canvas (fun c -> Canvas.draw c !backing; c));
   area#misc#draw (Some update_rect);
-  true
+  (* canvas (fun c -> send (Canvas.Protocol.Canvas c); c); *)
+  Lwt.bind (Lwt_unix.sleep 0.01) (update_display send area)
 
 lwt () =
   ignore (GMain.init ());
@@ -184,15 +204,15 @@ lwt () =
 
   (* Create the drawing area *)
   let area = GMisc.drawing_area ~width ~height ~packing:main_paned#add () in
+
   let receive = function
     | Some v -> 
       (match v with
-        | Connection.Quit -> exit 0; return ();
-        | Connection.Brush (x, y) -> return ());(* draw_brush area backing x y; return ()) *)
+        | Canvas.Protocol.Quit -> print_endline "Quit"; return ()
+        | Canvas.Protocol.Canvas c -> set_canvas c; return ());(* draw_brush area backing x y; return ()) *)
     | None -> return () in
 
   lwt send = Connection.Client.connect ~port ~host:"localhost" ~receive in
-    
     
     ignore(area#event#connect#expose ~callback:(expose area backing));
     ignore(area#event#connect#configure ~callback:(configure window backing));
@@ -222,12 +242,29 @@ lwt () =
 
         (* .. And a quit button *)
     let quit_button = GButton.button ~label:"Quit" ~packing:tool_vbox#add () in
-    let _ = GMain.Idle.add (idle area) in
-    ignore(quit_button#connect#clicked ~callback:(fun () -> (ignore(send Connection.Quit))));
+    (* let _ = GMain.Idle.add (idle send area) in *)
+    ignore(quit_button#connect#clicked ~callback:(fun () -> 
+       (ignore(canvas 
+       (fun c ->
+         send (Canvas.Protocol.Canvas c);
+         let ch = open_in_bin "test.bin" in
+         let c = input_value ch in
+         c
+       )))));
+
     (* let rec update_canvas () = *)
     (*   Lwt.bind (draw_tiles !backing) update_canvas *)
     (* in *)
     (* lwt () = update_canvas() in *)
+    
+    (* let rec loop () = *)
+    (*   lwt () = send !canvas in *)
+    (*   (\* lwt () = Lwt_unix.sleep 0.1 in *\) *)
+    (*   loop () *)
+    (* in *)
+
     ignore(window#show ());
+    Lwt.ignore_result (update_display send area ());
+
     waiter
 
