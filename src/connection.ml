@@ -41,37 +41,34 @@ module Server = struct
     let host = entry.h_addr_list.(0) in
     let addr = ADDR_INET (host, port) in
     let server_socket = socket PF_INET SOCK_STREAM 0 in
-      catch (fun () ->
-        bind server_socket addr;
-        listen server_socket 10;
-        let rec loop clients =
-          choose [
-            begin
-              lwt (fd,_) = accept server_socket in
-              let out_ch = out_channel_of_descr fd in
-              let in_ch = in_channel_of_descr fd in
-              loop ((in_ch, out_ch, fd) :: clients)
-            end;
+    let read_clients clients = 
+      List.map 
+        (fun (in_ch, _, fd) -> 
+          lwt cmd = read_val in_ch in
+          return (fd, cmd))
+        clients
+    in
+    catch (fun () ->
+      bind server_socket addr;
+      listen server_socket 10;
+      let rec loop clients =
+        choose [
 
-            begin
-              let read_clients = 
-                List.map 
-                  (fun (in_ch, _, _) -> 
-                    read_val in_ch) clients 
-              in
-              lwt cmd = Lwt.pick read_clients in
-              Lwt_util.iter (fun (in_ch, out_ch, fd) ->
-                    (* TODO: Still don't understand why the data still arrive to random sockets 
-                         even if i check it was the same socket as read from *)
-                begin
-                  return (match cmd with 
-                    | Some cmd ->
-                      (if (* s != s' *) true then 
-                          Lwt.ignore_result(write out_ch cmd))
-                    | None -> ())
-                end
-              ) clients; loop clients
-            end]
+          begin
+            lwt (fd,_) = accept server_socket in
+            let out_ch = out_channel_of_descr fd in
+            let in_ch = in_channel_of_descr fd in
+            loop ((in_ch, out_ch, fd) :: clients)
+          end;
+
+          lwt fd', cmd = Lwt.pick (read_clients clients) in
+          Lwt_util.iter (fun (in_ch, out_ch, fd) ->
+            return (match cmd with 
+              | Some cmd ->
+                (if fd != fd' then 
+                    Lwt.ignore_result (write out_ch cmd))
+              | None -> ())) clients; loop clients
+        ]
         in
         loop []) (fun z -> close server_socket; fail z)
 
