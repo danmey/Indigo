@@ -29,7 +29,7 @@ module Make(B : GRAPHICS_BACKEND) = struct
 
   and drag = { dragged : bool;
                drag_x : int;
-               drag_y : int } with sexp
+               drag_y : int }
 
 
   let rec is_in t ~x ~y =     
@@ -42,9 +42,9 @@ module Make(B : GRAPHICS_BACKEND) = struct
         | Some drag ->
           let pos_x, pos_y = t.pos in
           let drag_x, drag_y = x - pos_x,  y - pos_y in
-          Some { dragged = true; drag_x; drag_y }
+          Some { dragged = true; drag_x=drag_x; drag_y=drag_y }
         | None -> None in
-      { t with drag }
+      { t with drag = drag }
     else t
 
   and button_released t ~x ~y =
@@ -53,14 +53,14 @@ module Make(B : GRAPHICS_BACKEND) = struct
         | Some drag ->
           Some { drag with dragged = false; }
         | None -> None in
-      { t with drag }
+      { t with drag = drag }
     else t
       
   and motion t ~x ~y = 
       match t.drag with
         | Some d ->
           if d.dragged then
-            { t with pos= (x-d.drag_x, y-d.drag_y) }
+            { t with pos = (x-d.drag_x, y-d.drag_y) }
           else t
         | None -> t
         
@@ -73,9 +73,9 @@ module Make(B : GRAPHICS_BACKEND) = struct
     let width, height = B.size_of_bitmap bitmap in
     let pos = x, y in
     B.load_bitmap fn;
-    { width;
-      height;
-      pos;
+    { width = width;
+      height = height;
+      pos = pos;
       drag = Some default_drag;
       graphics = fn;
     }

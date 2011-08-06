@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 open Lwt
 open Lwt_chan
-
+open Lwt_unix
 
 module GtkBackend = struct
   type bitmap = GdkPixbuf.pixbuf
@@ -51,11 +51,9 @@ module GtkBackend = struct
 
 end
 
-
 module Canvas = Canvas.Make(GtkBackend)
 module Tile = Tile.Make(GtkBackend)
 module Protocol = Protocol.Make(Canvas)
-
 
 (* Backing pixmap for drawing area *)
 let backing = ref (GDraw.pixmap ~width:200 ~height:200 ())
@@ -71,6 +69,13 @@ let set_canvas c =
   Lwt.ignore_result (Lwt_mutex.with_lock canvas_mutex 
     (fun () ->
       return (ignore(the_canvas := c))))
+
+module Connection = Connection.Make(Protocol)(struct 
+  let receive = function
+    | Protocol.Quit -> 
+      print_endline "Quit"
+    | Protocol.State c -> 
+      set_canvas c end)
     
 (* Create a new backing pixmap of the appropriate size *)
 let configure window backing ev =
@@ -107,7 +112,7 @@ let draw_brush (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) x y =
   !backing#rectangle ~x ~y ~width ~height ~filled:true ();
   area#misc#draw (Some update_rect)
 
-let font = lazy (Gdk.Font.load "Courier New")
+(* let font = lazy (Gdk.Font.load "Courier New") *)
 
 let button_pressed send area backing ev =
   if GdkEvent.Button.button ev = 1 then
@@ -147,37 +152,16 @@ let create_text packing =
     view, scrolled_window#coerce
 
 let drag_data_received context ~x ~y data ~info ~time =
-  let open Pervasives in
-  match info with _ -> Printf.printf "Data: %d: %s\n " info data#data; flush stdout;
     context # finish ~success:true ~del:true ~time
 
 
 let drag_drop (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) (src_widget : GTree.view) (context : GObj.drag_context) ~x ~y ~time =
-  let open Pervasives in
-      let a = src_widget#drag#get_data ~target:"INTEGER"  ~time context in
+  let a = src_widget#drag#get_data ~target:"INTEGER"  ~time context in
 
       Lwt.ignore_result (canvas (fun c -> Canvas.add c (Tile.dice ~x ~y)));
       true
 
         
-let drag_data_get drag_context (selection_context : GObj.selection_context) ~info ~time =
-  let open Pervasives in
-      ()
-
-open Lwt
-open Lwt_unix
-
-module Receiver = struct
-  let receive = function
-    | Protocol.Quit -> 
-      print_endline "Quit"
-    | Protocol.State c -> 
-      set_canvas c
-end
-
-module Connection = Connection.Make(Protocol)(Receiver)
-
-
 let rec update_display send (area:GMisc.drawing_area) () =
   Pervasives.flush Pervasives.stdout;
   let x,y = 0,0 in
@@ -237,8 +221,6 @@ lwt () =
                   `POINTER_MOTION_HINT];
     
   let view = ObjectTree.create ~packing:tool_vbox#add ~canvas:area () in
-  let open Pervasives in
-
   let target_entry = { Gtk.target= "INTEGER"; Gtk.flags= []; Gtk.info=123 } in
 
   view#drag#source_set ~modi:[`BUTTON1] ~actions:[`COPY] [target_entry];
@@ -247,7 +229,7 @@ lwt () =
   (* area#drag#connect#leave ~callback:(fun context ~time -> print_endline "Leave!"; flush stdout); *)
   (* area#drag#connect#motion ~callback:(fun context ~x ~y ~time -> print_endline "Motion!"; flush stdout; false); *)
   area#drag#connect#drop ~callback:(drag_drop area backing view);
-  view#drag#connect#data_get  ~callback:drag_data_get;
+  (* view#drag#connect#data_get  ~callback:drag_data_get; *)
   (* view#drag#connect#data_delete  ~callback:(fun context -> print_endline "Data Delete!"; flush stdout); *)
   (* view#drag#connect#beginning  ~callback:(fun context -> print_endline "Data Begining!"; flush stdout); *)
   (* view#drag#connect#ending  ~callback:(fun context -> print_endline "Data End!"; flush stdout); *)
@@ -255,18 +237,20 @@ lwt () =
         (* .. And a quit button *)
   let quit_button = GButton.button ~label:"Quit" ~packing:tool_vbox#add () in
     (* let _ = GMain.Idle.add (idle send area) in *)
-  ignore(quit_button#connect#clicked 
-           ~callback:(fun () -> 
-             (ignore(canvas 
-                       (fun c ->
-                         send (Protocol.State c);
-                         let ch = open_in_bin "test.bin" in
-                         let c = input_value ch in
-                         c)))));
+  (* ignore(quit_button#connect#clicked  *)
+  (*          ~callback:(fun () ->  *)
+  (*            (ignore(canvas  *)
+  (*                      (fun c -> *)
+  (*                        send (Protocol.State c); *)
+  (*                        let ch = open_in_bin "test.bin" in *)
+  (*                        let c = input_value ch in *)
+  (*                        c))))); *)
 
     ignore(window#show ());
 
     Lwt.ignore_result (update_display send area ());
 
+(* Main loop: *)
     waiter
+
 

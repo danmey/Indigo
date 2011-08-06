@@ -1,7 +1,7 @@
 module Make(G : Tile.GRAPHICS_BACKEND) = struct
   module T = Tile.Make(G)
   module Item = T
-  type t = { tiles : T.t list; } with sexp
+  type t = { tiles : T.t list; }
 
   let create () = { tiles = [] }
   let add canvas tile =

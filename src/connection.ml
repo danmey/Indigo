@@ -24,19 +24,26 @@ open Lwt_chan
 
 module Make(C : sig type command end)(R : sig val receive : C.command -> unit end) = struct
 let write out_ch (cmd : C.command) =
+  try_lwt
     lwt () = output_value out_ch cmd in
     flush out_ch
+  with 
+    | End_of_file -> return ()
+    | Unix.Unix_error (_,_,_) -> return ()
 
-let read_val in_ch : C.command option Lwt.t =
-      input_value in_ch >>= fun (v : C.command) -> return (Some v)
-
+let read_val in_ch =
+  try_lwt
+    input_value in_ch >>= fun (v : C.command) -> return (Some v)
+  with 
+    | End_of_file -> return None
+    | Unix.Unix_error (_,_,_) -> return None
     
 module Server = struct
 
   let rec restart_on_EINTR f x = 
     try f x with Unix.Unix_error (Unix.EINTR, _, _) -> restart_on_EINTR f x
 
-  let start port =
+  let rec start port =
     lwt host_name = gethostname () in
     lwt entry = gethostbyname host_name in
     let host = entry.h_addr_list.(0) in
@@ -46,7 +53,9 @@ module Server = struct
       List.map 
         (fun (in_ch, _, fd) -> 
           lwt cmd = read_val in_ch in
-          return (fd, cmd))
+          match cmd with
+            | Some cmd -> return (Some (fd, cmd))
+            | None -> return None)
         clients
     in
     catch (fun () ->
@@ -61,18 +70,22 @@ module Server = struct
             loop ((in_ch, out_ch, fd) :: clients)
           end;
 
-          lwt fd', cmd = Lwt.pick (read_clients clients) in
-          Lwt_util.iter 
-            (fun (in_ch, out_ch, fd) ->
-              return (match cmd with 
-                | Some cmd ->
-                  (if Lwt_unix.unix_file_descr fd <> Lwt_unix.unix_file_descr fd' then 
-                      Lwt.ignore_result (write out_ch cmd))
-                | None -> ())) clients; loop clients
+          match_lwt Lwt.pick (read_clients clients) with
+            | Some (fd', cmd)  ->
+              Lwt_util.iter 
+                (fun (in_ch, out_ch, fd) ->
+                  return (match cmd with 
+                    cmd ->
+                      (if Lwt_unix.unix_file_descr fd <> Lwt_unix.unix_file_descr fd' then 
+                          Lwt.ignore_result (write out_ch cmd))
+                    )) clients; loop clients
+            | None -> loop clients
         ]
 
         in
-        loop []) (fun z -> close server_socket; fail z)
+        loop []) 
+      (function 
+        | z -> close server_socket; fail z)
 
 end
 
