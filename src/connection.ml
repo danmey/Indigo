@@ -21,7 +21,8 @@ open Lwt
 open Lwt_unix
 open Lwt_chan
 
-module Make(C : sig type command end) = struct
+
+module Make(C : sig type command end)(R : sig val receive : C.command -> unit end) = struct
 let write out_ch (cmd : C.command) =
     lwt () = output_value out_ch cmd in
     flush out_ch
@@ -53,7 +54,6 @@ module Server = struct
       listen server_socket 10;
       let rec loop clients =
         choose [
-
           begin
             lwt (fd,_) = accept server_socket in
             let out_ch = out_channel_of_descr fd in
@@ -62,13 +62,15 @@ module Server = struct
           end;
 
           lwt fd', cmd = Lwt.pick (read_clients clients) in
-          Lwt_util.iter (fun (in_ch, out_ch, fd) ->
-            return (match cmd with 
-              | Some cmd ->
-                (if fd != fd' then 
-                    Lwt.ignore_result (write out_ch cmd))
-              | None -> ())) clients; loop clients
+          Lwt_util.iter 
+            (fun (in_ch, out_ch, fd) ->
+              return (match cmd with 
+                | Some cmd ->
+                  (if Lwt_unix.unix_file_descr fd <> Lwt_unix.unix_file_descr fd' then 
+                      Lwt.ignore_result (write out_ch cmd))
+                | None -> ())) clients; loop clients
         ]
+
         in
         loop []) (fun z -> close server_socket; fail z)
 
@@ -76,14 +78,14 @@ end
 
 
 module Client = struct
-  let connect ~port ~host ~receive =
+  let connect ~port ~host =
      lwt entry = gethostbyname host in
      let host = entry.h_addr_list.(0) in
      let addr = ADDR_INET (host, port) in
      lwt in_ch, out_ch = open_connection addr in
      let rec loop () =
        lwt cmd = read_val in_ch in
-       lwt () = receive cmd in
+       lwt () = return (match cmd with Some cmd -> R.receive cmd | None -> ()) in
        loop ()
     in
     Lwt.ignore_result (loop ());

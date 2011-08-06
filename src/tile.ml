@@ -10,6 +10,14 @@ module type GRAPHICS_BACKEND = sig
   val load_bitmap : string -> bitmap
 end
 
+
+module type NETWORK_BACKEND = sig
+  type t
+  val send : (t -> unit)
+  val set_send : (t -> unit) -> unit
+end
+
+
 module Make(B : GRAPHICS_BACKEND) = struct
 
   type t  = { width : int;
@@ -49,14 +57,12 @@ module Make(B : GRAPHICS_BACKEND) = struct
     else t
       
   and motion t ~x ~y = 
-    if is_in t ~x ~y then
       match t.drag with
         | Some d ->
           if d.dragged then
             { t with pos= (x-d.drag_x, y-d.drag_y) }
           else t
         | None -> t
-    else t
         
   and default_drag = { dragged = false; drag_x = 0; drag_y = 0 }
 

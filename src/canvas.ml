@@ -1,6 +1,6 @@
-module Make(B : Tile.GRAPHICS_BACKEND) = struct
-  module T = Tile.Make(B)
-
+module Make(G : Tile.GRAPHICS_BACKEND) = struct
+  module T = Tile.Make(G)
+  module Item = T
   type t = { tiles : T.t list; } with sexp
 
   let create () = { tiles = [] }
@@ -20,10 +20,9 @@ module Make(B : Tile.GRAPHICS_BACKEND) = struct
     { canvas with tiles = List.map (fun t -> T.motion t ~x ~y) canvas.tiles }
 
   and print c = List.iter (fun t -> T.print t; print_endline ""; flush stdout) c.tiles
-  module Protocol = struct
-    type command = Canvas of t | Quit
+
+
     (* let sexp_of_t = function Canvas c -> sexp_of_t c *)
-    (* let t_of_sexp t = Canvas (t_of_sexp t) *)
-  end
+  (* let t_of_sexp t = Canvas (t_of_sexp t) *)
 end
 

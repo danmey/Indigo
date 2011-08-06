@@ -50,8 +50,16 @@ module GtkBackend = struct
 
 end
 
+(* module NetworkBackend = struct *)
+(*   let send_func = ref None *)
+(*   let send cmd = match !send_func with *)
+(*     | None -> () *)
+(*     | Some f -> f cmd *)
+(* end *)
+
 module Canvas = Canvas.Make(GtkBackend)
 module Tile = Tile.Make(GtkBackend)
+
 
 (* Backing pixmap for drawing area *)
 let backing = ref (GDraw.pixmap ~width:200 ~height:200 ())
@@ -171,7 +179,19 @@ let drag_data_get drag_context (selection_context : GObj.selection_context) ~inf
         ()
 open Lwt
 open Lwt_unix
-module Connection = Connection.Make(Canvas.Protocol)
+
+
+module Protocol = Protocol.Make(Canvas)
+
+module Receiver = struct
+  let receive = function
+    | Protocol.Quit -> 
+      print_endline "Quit"
+    | Protocol.State c -> 
+      set_canvas c
+end
+
+module Connection = Connection.Make(Protocol)(Receiver)
 
 
 let rec update_display send (area:GMisc.drawing_area) () =
@@ -180,12 +200,13 @@ let rec update_display send (area:GMisc.drawing_area) () =
   let rect = area # misc # allocation in
   let width, height = rect.Gtk.width, rect.Gtk.height in
   let update_rect = Gdk.Rectangle.create ~x ~y ~width ~height in
+
   !backing#set_foreground `WHITE;
   !backing#rectangle ~x:0 ~y:0 ~width ~height ~filled:true ();
   Lwt.ignore_result (canvas (fun c -> Canvas.draw c !backing; c));
   area#misc#draw (Some update_rect);
-  canvas (fun c -> send (Canvas.Protocol.Canvas c); c);
-  Lwt.bind (Lwt_unix.sleep 0.001) (update_display send area)
+  canvas (fun c -> send (Protocol.State c); c);
+  Lwt.bind (Lwt_unix.sleep 0.05) (update_display send area)
 
 lwt () =
   ignore (GMain.init ());
@@ -215,16 +236,7 @@ lwt () =
   (* Create the drawing area *)
   let area = GMisc.drawing_area ~width ~height ~packing:main_paned#add () in
 
-  let receive = function
-    | Some v -> 
-      return (match v with
-        | Canvas.Protocol.Quit -> 
-          print_endline "Quit"
-        | Canvas.Protocol.Canvas c -> 
-          set_canvas c)
-    | None -> return () in
-
-  lwt send = Connection.Client.connect ~port ~host:"localhost" ~receive in
+  lwt send = Connection.Client.connect ~port ~host:"localhost" in
     
     ignore(area#event#connect#expose ~callback:(expose area backing));
     ignore(area#event#connect#configure ~callback:(configure window backing));
@@ -258,7 +270,7 @@ lwt () =
     ignore(quit_button#connect#clicked ~callback:(fun () -> 
        (ignore(canvas 
        (fun c ->
-         send (Canvas.Protocol.Canvas c);
+         send (Protocol.State c);
          let ch = open_in_bin "test.bin" in
          let c = input_value ch in
          c)))));
