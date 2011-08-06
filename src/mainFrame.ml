@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 open Lwt
 open Lwt_chan
 
+
 module GtkBackend = struct
   type bitmap = GdkPixbuf.pixbuf
   type gc = GDraw.pixmap
@@ -50,15 +51,10 @@ module GtkBackend = struct
 
 end
 
-(* module NetworkBackend = struct *)
-(*   let send_func = ref None *)
-(*   let send cmd = match !send_func with *)
-(*     | None -> () *)
-(*     | Some f -> f cmd *)
-(* end *)
 
 module Canvas = Canvas.Make(GtkBackend)
 module Tile = Tile.Make(GtkBackend)
+module Protocol = Protocol.Make(Canvas)
 
 
 (* Backing pixmap for drawing area *)
@@ -113,24 +109,13 @@ let draw_brush (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) x y =
 
 let font = lazy (Gdk.Font.load "Courier New")
 
-(* Draw a rectangle on the screen *)
-(* let draw_dice (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) x y = *)
-(*   let x = x - 5 in *)
-(*   let y = y - 5 in *)
-(*   let width = 10 in *)
-(*   let height = 10 in *)
-(*   let update_rect = Gdk.Rectangle.create ~x ~y ~width ~height in *)
-(*   !backing#set_foreground `BLACK; *)
-(*   !backing#put_pixbuf ~x ~y dice_image; *)
-(*   (\* !backing#string ~x ~y "ala ma kota" ~font:(Lazy.force font) ; *\) *)
-(*   area#misc#draw (Some update_rect) *)
-
 let button_pressed send area backing ev =
   if GdkEvent.Button.button ev = 1 then
     begin
       let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
       Lwt.ignore_result (canvas (fun c -> Canvas.button_pressed c ~x ~y))
     end;
+  canvas (fun c -> send (Protocol.State c); c);
   true
 
 let button_release send area backing ev =
@@ -139,6 +124,7 @@ let button_release send area backing ev =
       let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
       Lwt.ignore_result (canvas (fun c -> Canvas.button_released c ~x ~y))
     end;
+  canvas (fun c -> send (Protocol.State c); c);
   true
 
 let motion_notify send area backing ev =
@@ -149,7 +135,7 @@ let motion_notify send area backing ev =
       (int_of_float (GdkEvent.Motion.x ev), int_of_float (GdkEvent.Motion.y ev))
   in
   Lwt.ignore_result (canvas (fun c -> Canvas.motion c ~x ~y));
-
+  canvas (fun c -> send (Protocol.State c); c);
   true
 
 
@@ -175,13 +161,11 @@ let drag_drop (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) (src_widget :
 
         
 let drag_data_get drag_context (selection_context : GObj.selection_context) ~info ~time =
-    let open Pervasives in
-        ()
+  let open Pervasives in
+      ()
+
 open Lwt
 open Lwt_unix
-
-
-module Protocol = Protocol.Make(Canvas)
 
 module Receiver = struct
   let receive = function
@@ -205,8 +189,7 @@ let rec update_display send (area:GMisc.drawing_area) () =
   !backing#rectangle ~x:0 ~y:0 ~width ~height ~filled:true ();
   Lwt.ignore_result (canvas (fun c -> Canvas.draw c !backing; c));
   area#misc#draw (Some update_rect);
-  canvas (fun c -> send (Protocol.State c); c);
-  Lwt.bind (Lwt_unix.sleep 0.05) (update_display send area)
+  Lwt.bind (Lwt_unix.sleep 0.01) (update_display send area)
 
 lwt () =
   ignore (GMain.init ());
@@ -237,43 +220,49 @@ lwt () =
   let area = GMisc.drawing_area ~width ~height ~packing:main_paned#add () in
 
   lwt send = Connection.Client.connect ~port ~host:"localhost" in
+  ignore(area#event#connect#expose ~callback:(expose area backing));
+  ignore(area#event#connect#configure ~callback:(configure window backing));
     
-    ignore(area#event#connect#expose ~callback:(expose area backing));
-    ignore(area#event#connect#configure ~callback:(configure window backing));
+    (* Event signals *)
+  ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
+  ignore(area#event#connect#button_press ~callback:(button_pressed send area backing));
+  ignore(area#event#connect#button_release ~callback:(button_release send area backing));
+  ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
     
-  (* Event signals *)
-    ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
-    ignore(area#event#connect#button_press ~callback:(button_pressed send area backing));
-    ignore(area#event#connect#button_release ~callback:(button_release send area backing));
-    ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
+  area#event#add [`EXPOSURE; 
+                  `LEAVE_NOTIFY; 
+                  `BUTTON_PRESS; 
+                  `BUTTON_RELEASE; 
+                  `POINTER_MOTION; 
+                  `POINTER_MOTION_HINT];
     
-    area#event#add [`EXPOSURE; `LEAVE_NOTIFY; `BUTTON_PRESS; `BUTTON_RELEASE; `POINTER_MOTION; `POINTER_MOTION_HINT;];
-    
-    let view = ObjectTree.create ~packing:tool_vbox#add ~canvas:area () in
-        let open Pervasives in
+  let view = ObjectTree.create ~packing:tool_vbox#add ~canvas:area () in
+  let open Pervasives in
 
-    let target_entry = { Gtk.target= "INTEGER"; Gtk.flags= []; Gtk.info=123 } in
-    view#drag#source_set ~modi:[`BUTTON1] ~actions:[`COPY] [target_entry];
-    area#drag#dest_set ~flags:[`HIGHLIGHT;`MOTION] ~actions:[`COPY] [target_entry];
-    area#drag#connect#data_received ~callback:drag_data_received;
-    area#drag#connect#leave ~callback:(fun context ~time -> print_endline "Leave!"; flush stdout);
-    area#drag#connect#motion ~callback:(fun context ~x ~y ~time -> print_endline "Motion!"; flush stdout; false);
-    area#drag#connect#drop ~callback:(drag_drop area backing view);
-    view#drag#connect#data_get  ~callback:drag_data_get;
-    view#drag#connect#data_delete  ~callback:(fun context -> print_endline "Data Delete!"; flush stdout);
-    view#drag#connect#beginning  ~callback:(fun context -> print_endline "Data Begining!"; flush stdout);
-    view#drag#connect#ending  ~callback:(fun context -> print_endline "Data End!"; flush stdout);
+  let target_entry = { Gtk.target= "INTEGER"; Gtk.flags= []; Gtk.info=123 } in
+
+  view#drag#source_set ~modi:[`BUTTON1] ~actions:[`COPY] [target_entry];
+  area#drag#dest_set ~flags:[`HIGHLIGHT;`MOTION] ~actions:[`COPY] [target_entry];
+  area#drag#connect#data_received ~callback:drag_data_received;
+  (* area#drag#connect#leave ~callback:(fun context ~time -> print_endline "Leave!"; flush stdout); *)
+  (* area#drag#connect#motion ~callback:(fun context ~x ~y ~time -> print_endline "Motion!"; flush stdout; false); *)
+  area#drag#connect#drop ~callback:(drag_drop area backing view);
+  view#drag#connect#data_get  ~callback:drag_data_get;
+  (* view#drag#connect#data_delete  ~callback:(fun context -> print_endline "Data Delete!"; flush stdout); *)
+  (* view#drag#connect#beginning  ~callback:(fun context -> print_endline "Data Begining!"; flush stdout); *)
+  (* view#drag#connect#ending  ~callback:(fun context -> print_endline "Data End!"; flush stdout); *)
 
         (* .. And a quit button *)
-    let quit_button = GButton.button ~label:"Quit" ~packing:tool_vbox#add () in
+  let quit_button = GButton.button ~label:"Quit" ~packing:tool_vbox#add () in
     (* let _ = GMain.Idle.add (idle send area) in *)
-    ignore(quit_button#connect#clicked ~callback:(fun () -> 
-       (ignore(canvas 
-       (fun c ->
-         send (Protocol.State c);
-         let ch = open_in_bin "test.bin" in
-         let c = input_value ch in
-         c)))));
+  ignore(quit_button#connect#clicked 
+           ~callback:(fun () -> 
+             (ignore(canvas 
+                       (fun c ->
+                         send (Protocol.State c);
+                         let ch = open_in_bin "test.bin" in
+                         let c = input_value ch in
+                         c)))));
 
     ignore(window#show ());
 
