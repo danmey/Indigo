@@ -35,8 +35,18 @@ module GtkBackend = struct
   let size_of_bitmap bitmap =
     GdkPixbuf.get_width bitmap, GdkPixbuf.get_height bitmap
 
-  let load_bitmap fn = let bmp = bitmap_of_file ~fn in Hashtbl.add resources fn bmp; bmp
-  let bitmap name = try Hashtbl.find resources name with Not_found -> let bmp = load_bitmap name in bmp
+  let load_bitmap fn =
+    let bmp = bitmap_of_file ~fn in 
+    Hashtbl.add resources fn bmp; 
+    bmp
+
+  let bitmap name = 
+    try 
+      Hashtbl.find resources name 
+    with Not_found ->
+      print_endline "not loaded";
+      let bmp = load_bitmap name in 
+      bmp
 
 end
 
@@ -48,15 +58,15 @@ let backing = ref (GDraw.pixmap ~width:200 ~height:200 ())
 let the_canvas = ref (Canvas.create ())
 let canvas_mutex = Lwt_mutex.create ()
 let canvas f =
-  Lwt_mutex.with_lock canvas_mutex (fun () ->
-    the_canvas := f !the_canvas;
-    return ())
+  Lwt_mutex.with_lock canvas_mutex 
+    (fun () ->
+      the_canvas := f !the_canvas;
+      return ())
 
 let set_canvas c =
-  Lwt_mutex.with_lock canvas_mutex (fun () ->
-    Canvas.print c;
-    ignore(the_canvas := c);
-    return ())
+  Lwt.ignore_result (Lwt_mutex.with_lock canvas_mutex 
+    (fun () ->
+      return (ignore(the_canvas := c))))
     
 (* Create a new backing pixmap of the appropriate size *)
 let configure window backing ev =
@@ -174,8 +184,8 @@ let rec update_display send (area:GMisc.drawing_area) () =
   !backing#rectangle ~x:0 ~y:0 ~width ~height ~filled:true ();
   Lwt.ignore_result (canvas (fun c -> Canvas.draw c !backing; c));
   area#misc#draw (Some update_rect);
-  (* canvas (fun c -> send (Canvas.Protocol.Canvas c); c); *)
-  Lwt.bind (Lwt_unix.sleep 0.01) (update_display send area)
+  canvas (fun c -> send (Canvas.Protocol.Canvas c); c);
+  Lwt.bind (Lwt_unix.sleep 0.001) (update_display send area)
 
 lwt () =
   ignore (GMain.init ());
@@ -207,9 +217,11 @@ lwt () =
 
   let receive = function
     | Some v -> 
-      (match v with
-        | Canvas.Protocol.Quit -> print_endline "Quit"; return ()
-        | Canvas.Protocol.Canvas c -> set_canvas c; return ());(* draw_brush area backing x y; return ()) *)
+      return (match v with
+        | Canvas.Protocol.Quit -> 
+          print_endline "Quit"
+        | Canvas.Protocol.Canvas c -> 
+          set_canvas c)
     | None -> return () in
 
   lwt send = Connection.Client.connect ~port ~host:"localhost" ~receive in
@@ -249,21 +261,10 @@ lwt () =
          send (Canvas.Protocol.Canvas c);
          let ch = open_in_bin "test.bin" in
          let c = input_value ch in
-         c
-       )))));
-
-    (* let rec update_canvas () = *)
-    (*   Lwt.bind (draw_tiles !backing) update_canvas *)
-    (* in *)
-    (* lwt () = update_canvas() in *)
-    
-    (* let rec loop () = *)
-    (*   lwt () = send !canvas in *)
-    (*   (\* lwt () = Lwt_unix.sleep 0.1 in *\) *)
-    (*   loop () *)
-    (* in *)
+         c)))));
 
     ignore(window#show ());
+
     Lwt.ignore_result (update_display send area ());
 
     waiter
