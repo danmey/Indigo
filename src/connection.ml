@@ -49,41 +49,36 @@ module Server = struct
     let host = entry.h_addr_list.(0) in
     let addr = ADDR_INET (host, port) in
     let server_socket = socket PF_INET SOCK_STREAM 0 in
-    let read_clients clients = 
-      List.map 
-        (fun (in_ch, _, fd) -> 
+
+    let clients = ref [] in
+    let read_clients () = 
+      List.map
+        (fun (in_ch,_ , fd') ->
           lwt cmd = read_val in_ch in
           match cmd with
-            | Some cmd -> return (Some (fd, cmd))
-            | None -> return None)
-        clients
+            | None -> return ()
+            | Some cmd  ->
+              Lwt_list.iter_p (fun (in_ch, out_ch, fd) ->
+                return (if Lwt_unix.unix_file_descr fd <> Lwt_unix.unix_file_descr fd' then 
+                    Lwt.ignore_result (write out_ch cmd)))!clients) !clients
     in
+
     catch (fun () ->
       bind server_socket addr;
       listen server_socket 10;
-      let rec loop clients =
-        choose [
+      while_lwt true do
+        Lwt_unix.sleep 0.01 >>= fun () ->
+        choose ([
+
           begin
-            lwt (fd,_) = accept server_socket in
+            accept server_socket >>= fun (fd,_) ->
             let out_ch = out_channel_of_descr fd in
             let in_ch = in_channel_of_descr fd in
-            loop ((in_ch, out_ch, fd) :: clients)
+            return (clients := ((in_ch, out_ch, fd) :: !clients))
           end;
 
-          match_lwt Lwt.pick (read_clients clients) with
-            | Some (fd', cmd)  ->
-              Lwt_util.iter 
-                (fun (in_ch, out_ch, fd) ->
-                  return (match cmd with 
-                    cmd ->
-                      (if Lwt_unix.unix_file_descr fd <> Lwt_unix.unix_file_descr fd' then 
-                          Lwt.ignore_result (write out_ch cmd))
-                    )) clients; loop clients
-            | None -> loop clients
-        ]
-
-        in
-        loop []) 
+        ] @ read_clients ())
+      done)
       (function 
         | z -> close server_socket; fail z)
 

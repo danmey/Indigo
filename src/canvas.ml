@@ -20,7 +20,8 @@ module Make(G : Tile.GRAPHICS_BACKEND) = struct
     { canvas with tiles = List.map (fun t -> T.motion t ~x ~y) canvas.tiles }
 
   and print c = List.iter (fun t -> T.print t; print_endline ""; flush stdout) c.tiles
-
+    
+  and dragged canvas = List.exists T.dragged canvas.tiles
 
     (* let sexp_of_t = function Canvas c -> sexp_of_t c *)
   (* let t_of_sexp t = Canvas (t_of_sexp t) *)

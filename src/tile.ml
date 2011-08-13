@@ -85,5 +85,10 @@ module Make(B : GRAPHICS_BACKEND) = struct
 
   and print t =
     Printf.printf "width: %d height: %d pos: (%d %d)" t.width t.height (fst t.pos) (snd t.pos)
+  and dragged t =
+    match t.drag with
+      | Some drag -> true
+      | None -> false 
+
 end
 

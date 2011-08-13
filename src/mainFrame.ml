@@ -139,8 +139,12 @@ let motion_notify send area backing ev =
 	else
       (int_of_float (GdkEvent.Motion.x ev), int_of_float (GdkEvent.Motion.y ev))
   in
-  Lwt.ignore_result (canvas (fun c -> Canvas.motion c ~x ~y));
-  canvas (fun c -> send (Protocol.State c); c);
+  canvas (fun c -> 
+    let c = Canvas.motion c ~x ~y in
+    begin if Canvas.dragged c then
+        Lwt.ignore_result (send (Protocol.State c))
+    end;
+    c);
   true
 
 
@@ -176,15 +180,15 @@ let rec update_display send (area:GMisc.drawing_area) () =
   Lwt.bind (Lwt_unix.sleep 0.01) (update_display send area)
 
 lwt () =
-  ignore (GMain.init ());
-
-  Lwt_glib.install  (); 
-
-  let waiter, wakener = Lwt.wait () in
-
   if Sys.argv.(1) = "-server" then
-    run (Connection.Server.start (int_of_string (Sys.argv.(2))))
-  else
+    Connection.Server.start (int_of_string (Sys.argv.(2)))
+  else begin
+    ignore (GMain.init ());
+
+    Lwt_glib.install  (); 
+    
+    let waiter, wakener = Lwt.wait () in
+    
     let port = (int_of_string (Sys.argv.(1))) in
     
     let width = 200 in
@@ -248,9 +252,9 @@ lwt () =
 
     ignore(window#show ());
 
-    Lwt.ignore_result (update_display send area ());
-
+    update_display send area ();
 (* Main loop: *)
     waiter
+ end
 
-
+ 
