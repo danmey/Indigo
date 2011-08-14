@@ -180,9 +180,6 @@ let rec update_display send (area:GMisc.drawing_area) () =
   Lwt.bind (Lwt_unix.sleep 0.01) (update_display send area)
 
 lwt () =
-  if Sys.argv.(1) = "-server" then
-    Connection.Server.start (int_of_string (Sys.argv.(2)))
-  else begin
     ignore (GMain.init ());
 
     Lwt_glib.install  (); 
@@ -207,7 +204,7 @@ lwt () =
   (* Create the drawing area *)
   let area = GMisc.drawing_area ~width ~height ~packing:main_paned#add () in
 
-  lwt send = Connection.Client.connect ~port ~host:"localhost" in
+  lwt send = Connection.Client.connect ~port ~host:(Sys.argv.(2)) in
   ignore(area#event#connect#expose ~callback:(expose area backing));
   ignore(area#event#connect#configure ~callback:(configure window backing));
     
@@ -255,6 +252,5 @@ lwt () =
     update_display send area ();
 (* Main loop: *)
     waiter
- end
 
  

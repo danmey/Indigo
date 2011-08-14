@@ -44,6 +44,7 @@ module Server = struct
     try f x with Unix.Unix_error (Unix.EINTR, _, _) -> restart_on_EINTR f x
 
   let rec start port =
+    Sys.set_signal Sys.sigpipe Sys.Signal_ignore;
     lwt host_name = gethostname () in
     lwt entry = gethostbyname host_name in
     let host = entry.h_addr_list.(0) in
@@ -54,13 +55,15 @@ module Server = struct
     let read_clients () = 
       List.map
         (fun (in_ch,_ , fd') ->
-          lwt cmd = read_val in_ch in
-          match cmd with
-            | None -> return ()
-            | Some cmd  ->
-              Lwt_list.iter_p (fun (in_ch, out_ch, fd) ->
-                return (if Lwt_unix.unix_file_descr fd <> Lwt_unix.unix_file_descr fd' then 
-                    Lwt.ignore_result (write out_ch cmd)))!clients) !clients
+              lwt cmd = read_val in_ch in
+              match cmd with
+                | None -> return ()
+                | Some cmd  ->
+                  Lwt_list.iter_p (fun (in_ch, out_ch, fd) ->
+                    return (if Lwt_unix.unix_file_descr fd <> Lwt_unix.unix_file_descr fd' then 
+                        Lwt.ignore_result (write out_ch cmd))
+                      ) !clients
+                ) !clients
     in
 
     catch (fun () ->
