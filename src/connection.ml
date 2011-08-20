@@ -23,21 +23,23 @@ open Lwt_chan
 
 
 module Make(C : sig type command end)(R : sig val receive : C.command -> unit end) = struct
-let write out_ch (cmd : C.command) =
-  try_lwt
-    lwt () = output_value out_ch cmd in
-    flush out_ch
-  with 
-    | End_of_file -> return ()
-    | Unix.Unix_error (_,_,_) -> return ()
 
-let read_val in_ch =
-  try_lwt
-    input_value in_ch >>= fun (v : C.command) -> return (Some v)
-  with 
-    | End_of_file -> return None
-    | Unix.Unix_error (_,_,_) -> return None
+  let write out_ch (cmd : C.command) =
+    try_lwt
+      lwt () = output_value out_ch cmd in
+      flush out_ch
+    with 
+      | End_of_file -> return ()
+      | Unix.Unix_error (_,_,_) -> return ()
+
+  let read_val in_ch =
+    try_lwt
+      input_value in_ch >>= fun (v : C.command) -> return (Some v)
+    with 
+      | End_of_file -> return None
+      | Unix.Unix_error (_,_,_) -> return None
     
+
 module Server = struct
 
   let rec restart_on_EINTR f x = 
@@ -55,10 +57,9 @@ module Server = struct
     let read_clients () = 
       List.map
         (fun (in_ch,_ , fd') ->
-              lwt cmd = read_val in_ch in
-              match cmd with
-                | None -> return ()
-                | Some cmd  ->
+          match_lwt read_val in_ch with
+            | None -> return ()
+            | Some cmd  ->
                   Lwt_list.iter_p (fun (in_ch, out_ch, fd) ->
                     return (if Lwt_unix.unix_file_descr fd <> Lwt_unix.unix_file_descr fd' then 
                         Lwt.ignore_result (write out_ch cmd))

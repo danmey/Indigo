@@ -191,8 +191,8 @@ lwt () =
     let width = 200 in
     let height = 200 in
   
-
-  let window = GWindow.window ~title:"Scribble" () in
+    let () = Login.create () in
+    let window = GWindow.window ~title:"Indigo" () in
 
   let _ = window#connect#destroy ~callback:(fun () -> wakeup wakener ()) in
 
