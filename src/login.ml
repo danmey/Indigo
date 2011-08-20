@@ -22,11 +22,14 @@
 let mOk = "Ok"
 let mCancel = "Cancel"
 
-let ldestroy w = w # destroy ()
+let ldestroy f w = w # destroy (); f ()
+let ldestroy' w = ldestroy (fun () -> None) w
 
-let input_widget_ex ~widget ~event ~get_text ~bind_ok ~expand ?(actions=[])
-    ?(accept=(mOk, ldestroy)) ?(cancel=(mCancel, ldestroy))
+let input_widget_ex ~widget ~event ~bind_ok ~expand ?(actions=[])
+    ?(accept=(mOk, ldestroy')) ?(cancel=(mCancel, ldestroy'))
     ~title message =
+
+  let retour = ref None in
 
   let ok_lb, f_ok = accept in
   let cancel_lb, f_cancel = cancel in
@@ -48,7 +51,7 @@ let input_widget_ex ~widget ~event ~get_text ~bind_ok ~expand ?(actions=[])
     let b = GButton.button ~label: name
       ~packing: 
       (hbox_boutons#pack ~expand: true ~padding: 3) () in
-    let _ = b # connect # clicked (fun () -> cb window) in
+    let _ = b # connect # clicked (fun () -> retour := cb window) in
     b) actions  in
 
   wb_ok#grab_default ();
@@ -57,14 +60,16 @@ let input_widget_ex ~widget ~event ~get_text ~bind_ok ~expand ?(actions=[])
   (* the escape key is linked to the cancel action *)
   event#connect#key_press ~callback:
     begin fun ev -> 
-      if GdkEvent.Key.keyval ev = GdkKeysyms._Return && bind_ok then f_ok window;
-      if GdkEvent.Key.keyval ev = GdkKeysyms._Escape then f_cancel window;
+      if GdkEvent.Key.keyval ev = GdkKeysyms._Return && bind_ok then retour := f_ok window;
+      if GdkEvent.Key.keyval ev = GdkKeysyms._Escape then retour := f_cancel window;
       false
     end;
 
   widget#misc#grab_focus ();
   window#show ();
-  GMain.Main.main ()
+  GMain.Main.main ();
+
+  !retour
 
 let login ~title ?ok ?cancel ?(text="") message =
   let vbox = GPack.vbox () in
@@ -72,10 +77,14 @@ let login ~title ?ok ?cancel ?(text="") message =
   if text <> "" then
     we_chaine#select_region 0 (we_chaine#text_length);
   input_widget_ex ~widget:vbox#coerce ~event:we_chaine#event
-    ~get_text:(fun () -> we_chaine#text) ~bind_ok:true
+    ~bind_ok:true
     ~expand: false
     ~title
-    ~actions:["Clipboard login",ldestroy] message
+    ~actions:["Clipboard login",
+              ldestroy begin fun _ ->
+                let clipboard = GtkBase.Clipboard.get Gdk.Atom.clipboard in
+                GtkBase.Clipboard.wait_for_text clipboard
+              end] message
 
 let create k =
   ignore (GMain.init ());
@@ -84,4 +93,4 @@ let create k =
     ~ok:"Login"
     ~text:"danmey.org:1234" "INDIGO";;
 
-create "ala";;
+print_endline begin match create "" with | Some str -> str | None -> "" end;;

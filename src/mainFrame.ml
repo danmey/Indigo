@@ -164,7 +164,6 @@ let drag_drop (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) (src_widget :
 
       Lwt.ignore_result (canvas (fun c -> Canvas.add c (Tile.dice ~x ~y)));
       true
-
         
 let rec update_display send (area:GMisc.drawing_area) () =
   Pervasives.flush Pervasives.stdout;
@@ -194,63 +193,44 @@ lwt () =
     let () = Login.create () in
     let window = GWindow.window ~title:"Indigo" () in
 
-  let _ = window#connect#destroy ~callback:(fun () -> wakeup wakener ()) in
-
+    let _ = window#connect#destroy ~callback:(fun () -> wakeup wakener ()) in
+  
   (* Create a basic tool layout *)
-  let main_paned = GPack.paned `HORIZONTAL ~packing:window#add () in
+    let main_paned = GPack.paned `HORIZONTAL ~packing:window#add () in
 
-  let tool_vbox = GPack.vbox  ~packing:main_paned#add () in
+    let tool_vbox = GPack.vbox  ~packing:main_paned#add () in
 
   (* Create the drawing area *)
-  let area = GMisc.drawing_area ~width ~height ~packing:main_paned#add () in
+    let area = GMisc.drawing_area ~width ~height ~packing:main_paned#add () in
 
-  lwt send = Connection.Client.connect ~port ~host:(Sys.argv.(2)) in
-  ignore(area#event#connect#expose ~callback:(expose area backing));
-  ignore(area#event#connect#configure ~callback:(configure window backing));
+    lwt send = Connection.Client.connect ~port ~host:(Sys.argv.(2)) in
+    ignore(area#event#connect#expose ~callback:(expose area backing));
+    ignore(area#event#connect#configure ~callback:(configure window backing));
     
     (* Event signals *)
-  ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
-  ignore(area#event#connect#button_press ~callback:(button_pressed send area backing));
-  ignore(area#event#connect#button_release ~callback:(button_release send area backing));
-  ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
+    ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
+    ignore(area#event#connect#button_press ~callback:(button_pressed send area backing));
+    ignore(area#event#connect#button_release ~callback:(button_release send area backing));
+    ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
     
-  area#event#add [`EXPOSURE; 
+    area#event#add [`EXPOSURE; 
                   `LEAVE_NOTIFY; 
                   `BUTTON_PRESS; 
                   `BUTTON_RELEASE; 
                   `POINTER_MOTION; 
                   `POINTER_MOTION_HINT];
     
-  let view = ObjectTree.create ~packing:tool_vbox#add ~canvas:area () in
-  let target_entry = { Gtk.target= "INTEGER"; Gtk.flags= []; Gtk.info=123 } in
-
-  view#drag#source_set ~modi:[`BUTTON1] ~actions:[`COPY] [target_entry];
-  area#drag#dest_set ~flags:[`HIGHLIGHT;`MOTION] ~actions:[`COPY] [target_entry];
-  area#drag#connect#data_received ~callback:drag_data_received;
-  (* area#drag#connect#leave ~callback:(fun context ~time -> print_endline "Leave!"; flush stdout); *)
-  (* area#drag#connect#motion ~callback:(fun context ~x ~y ~time -> print_endline "Motion!"; flush stdout; false); *)
-  area#drag#connect#drop ~callback:(drag_drop area backing view);
-  (* view#drag#connect#data_get  ~callback:drag_data_get; *)
-  (* view#drag#connect#data_delete  ~callback:(fun context -> print_endline "Data Delete!"; flush stdout); *)
-  (* view#drag#connect#beginning  ~callback:(fun context -> print_endline "Data Begining!"; flush stdout); *)
-  (* view#drag#connect#ending  ~callback:(fun context -> print_endline "Data End!"; flush stdout); *)
-
-        (* .. And a quit button *)
-  let quit_button = GButton.button ~label:"Quit" ~packing:tool_vbox#add () in
-    (* let _ = GMain.Idle.add (idle send area) in *)
-  (* ignore(quit_button#connect#clicked  *)
-  (*          ~callback:(fun () ->  *)
-  (*            (ignore(canvas  *)
-  (*                      (fun c -> *)
-  (*                        send (Protocol.State c); *)
-  (*                        let ch = open_in_bin "test.bin" in *)
-  (*                        let c = input_value ch in *)
-  (*                        c))))); *)
-
+    let view = ObjectTree.create ~packing:tool_vbox#add ~canvas:area () in
+    let target_entry = { Gtk.target= "INTEGER"; Gtk.flags= []; Gtk.info=123 } in
+    view#drag#source_set ~modi:[`BUTTON1] ~actions:[`COPY] [target_entry];
+    area#drag#dest_set ~flags:[`HIGHLIGHT;`MOTION] ~actions:[`COPY] [target_entry];
+    area#drag#connect#data_received ~callback:drag_data_received;
+    area#drag#connect#drop ~callback:(drag_drop area backing view);
+    let quit_button = GButton.button ~label:"Quit" ~packing:tool_vbox#add () in
     ignore(window#show ());
 
     update_display send area ();
-(* Main loop: *)
+    (* Main loop: *)
     waiter
 
  
