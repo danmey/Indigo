@@ -96,38 +96,71 @@ let parse_login str =
   rexp 8 login_regex str,
   rexp 13 login_regex str
 
-let validate_login text_box =
-  let uname, host, ip, port = parse_login (text_box # text) in
-  let host = match host, ip with | (Some h, None) -> Some h  | (None , Some h) ->  Some h | _ -> None in
-  match host with
-    | None -> let d = GWindow.message_dialog ~message:"Host or IP needs to be specified!" 
-                ~message_type:`ERROR 
-                ~buttons:GWindow.Buttons.close 
-                () in d # run (); ()
-    | Some _ -> ()
+let err msg =
+  let d = GWindow.message_dialog ~message:msg
+    ~message_type:`ERROR
+    ~modal:true
+    ~buttons:GWindow.Buttons.close () in
+  d # connect # response ~callback:(fun _ -> d # destroy());
+  ignore(d # show())
 
+let validate_login text =
+  let uname, host, ip, port = parse_login text in
+  let host = match host, ip with 
+    | (Some h, None) -> Some h  
+    | (None , Some h) ->  Some h 
+    | _ -> None in
+  let err what = err (Printf.sprintf "%s needs to be specified or is incorrect!" what) in
+  match host with
+    | None -> err "Host or IP"; None
+    | Some host -> begin match port with
+        | None -> err "Port"; None
+        | Some port -> Some (uname, host, int_of_string port) end
   
-let login ~title ?ok ?cancel ?(text="") message =
+
+let rec login_widget ~title ?ok ?cancel ?(text="") message =
   let vbox = GPack.vbox () in
   let we_chaine = GEdit.entry ~text ~packing:vbox#add () in
   if text <> "" then
     we_chaine#select_region 0 (we_chaine#text_length);
-  input_widget_ex ~widget:vbox#coerce ~event:we_chaine#event
-    ~bind_ok:true
-    ~expand: false
-    ~title
-    ~accept:(mOk, fun w -> validate_login we_chaine; None)
-    ~actions:["Clipboard login",
-              ldestroy begin fun _ ->
-                let clipboard = GtkBase.Clipboard.get Gdk.Atom.clipboard in
-                GtkBase.Clipboard.wait_for_text clipboard
+  let do_login w text =
+    match validate_login text with
+      | Some (uname, host, port) -> w # destroy (); begin 
+        let data = { uname = ""; host; port } in
+        match uname with
+          | Some uname -> Some { data with uname }
+          | None -> uname_widget data end
+      | None -> None in
+    input_widget_ex ~widget:vbox#coerce ~event:we_chaine#event
+      ~bind_ok:true
+      ~expand: false
+      ~title
+      ~accept:(mOk, fun w -> do_login w we_chaine#text)
+      ~actions:["Clipboard login",
+                begin fun w ->
+                  let clipboard = GtkBase.Clipboard.get Gdk.Atom.clipboard in
+                  let text = GtkBase.Clipboard.wait_for_text clipboard in
+                  match text with
+                    | Some text -> do_login w text
+                  | None -> err "Clipboard contents need to be text!"; None
               end] message
+
+
+and uname_widget data =
+  let vbox = GPack.vbox () in
+  let we_chaine = GEdit.entry ~text:(Printf.sprintf "%s:%d" data.host data.port) ~packing:vbox#add () in
+  match GToolbox.input_string
+    ~title:"Your private login details"
+    ~ok:"Login"
+    ~text:"" "aka" with
+    | Some uname -> Some { data with uname }
+    | None -> uname_widget data
 
 let create k =
   ignore (GMain.init ());
-  login 
+  login_widget
     ~title:"Paste your login details or click paste"
     ~ok:"Login"
     ~text:"danmey.org:1234" "INDIGO";;
 
-print_endline begin match create "" with | Some str -> str | None -> "" end;;
+create "11";;
