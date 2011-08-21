@@ -19,6 +19,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
   --------------------------------------------------------------------------*)
 
+type t = { host:string; port:int; uname:string }
+
 let mOk = "Ok"
 let mCancel = "Cancel"
 
@@ -71,6 +73,40 @@ let input_widget_ex ~widget ~event ~bind_ok ~expand ?(actions=[])
 
   !retour
 
+
+open Pcre
+let rexp n r s =
+  try
+    let rex = regexp  r in
+    let ss = exec ~rex s in
+    Some (get_substring ss n)
+  with Not_found -> None
+
+(* Taken from http://stackoverflow.com/questions/106179/regular-expression-to-match-hostname-or-ip-address *)
+let validIpAddressRegex = "(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])";;
+let validHostnameRegex = "(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\\-]*[A-Za-z0-9])"
+let uname_chars = "[a-zA-Z0-9_\\-]"
+let port_chars = "[0-9]"  
+let hostname_regex = Printf.sprintf "(%s)|(%s)" validHostnameRegex validIpAddressRegex
+let login_regex = Printf.sprintf "^((%s+)@)?(%s)(:(%s+))?$" uname_chars hostname_regex port_chars
+
+let parse_login str =
+  rexp 2 login_regex str,
+  rexp 4 login_regex str,
+  rexp 8 login_regex str,
+  rexp 13 login_regex str
+
+let validate_login text_box =
+  let uname, host, ip, port = parse_login (text_box # text) in
+  let host = match host, ip with | (Some h, None) -> Some h  | (None , Some h) ->  Some h | _ -> None in
+  match host with
+    | None -> let d = GWindow.message_dialog ~message:"Host or IP needs to be specified!" 
+                ~message_type:`ERROR 
+                ~buttons:GWindow.Buttons.close 
+                () in d # run (); ()
+    | Some _ -> ()
+
+  
 let login ~title ?ok ?cancel ?(text="") message =
   let vbox = GPack.vbox () in
   let we_chaine = GEdit.entry ~text ~packing:vbox#add () in
@@ -80,6 +116,7 @@ let login ~title ?ok ?cancel ?(text="") message =
     ~bind_ok:true
     ~expand: false
     ~title
+    ~accept:(mOk, fun w -> validate_login we_chaine; None)
     ~actions:["Clipboard login",
               ldestroy begin fun _ ->
                 let clipboard = GtkBase.Clipboard.get Gdk.Atom.clipboard in
