@@ -106,8 +106,7 @@ let err msg =
 
 let rec server_widget data message =
   let text = LoginData.to_string data in
-  let title = "Paste your server details or click paste" in
-  let connect = "Connect" in
+  let title = "Server details" in
   let vbox = GPack.vbox () in
   let we_chaine = GEdit.entry ~text ~packing:vbox#add () in
   if text <> "" then
@@ -125,7 +124,7 @@ let rec server_widget data message =
       ~expand: false
       ~title
       ~accept:(mOk, fun w -> do_login w we_chaine#text)
-      ~actions:["Clipboard login",
+      ~actions:["Clipboard",
                 begin fun w ->
                   let clipboard = GtkBase.Clipboard.get Gdk.Atom.clipboard in
                   let text = GtkBase.Clipboard.wait_for_text clipboard in
@@ -139,17 +138,32 @@ and login_widget data =
   let vbox = GPack.vbox () in
   let uname_entry = GEdit.entry ~packing:vbox#add () in
   let pass_entry =  GEdit.entry ~packing:vbox#add () in
+
+  begin match data.LoginData.login with
+    | None -> 
+      uname_entry # set_text "<Indigo user name>"; 
+      uname_entry # misc # grab_focus ()
+    | Some (LoginData.Uname uname) -> 
+      uname_entry # set_text uname; 
+      pass_entry # misc # grab_focus ()
+    | Some (LoginData.FullLogin {LoginData.uname; LoginData.pass}) -> 
+      uname_entry # set_text uname; 
+      pass_entry # set_text pass;
+      pass_entry # misc # grab_focus () end;
+
   input_widget_ex
     ~widget:vbox#coerce ~event:uname_entry#event
     ~bind_ok:true
     ~expand: false
     ~title:"Login"
     ~accept:(mOk, fun w -> w # destroy (); None)
-    ~actions:["Clipboard login", begin fun w -> w # destroy (); Some data end] "Login details"
+    ~actions:["Create", begin fun w -> w # destroy (); Some data end] "Login details"
 
-
-let create k =
+let create =
   ignore (GMain.init ());
-  server_widget { LoginData.host = "danmey.org"; LoginData.port = 1234; LoginData.login = None } "INDIGO";;
+  server_widget { 
+    LoginData.host = "danmey.org"; 
+    LoginData.port = 1234; 
+    LoginData.login = None } 
+    "INDIGO";;
 
-create "11";;
