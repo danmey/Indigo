@@ -22,14 +22,22 @@ open Lwt
 open Lwt_chan
 open Lwt_unix
 
+let font = lazy (Gdk.Font.load "-adobe-helvetica-bold-r-normal--12-120-75-75-p-70-iso8859-1")
+
 module GtkBackend = struct
   type bitmap = GdkPixbuf.pixbuf
   type gc = GDraw.pixmap
 
-
   let resources = Hashtbl.create 137
+
   let draw_bitmap ~pos:(x,y) (gc:gc) (bitmap:bitmap) =
-    gc#put_pixbuf ~x ~y bitmap; ()
+    gc#put_pixbuf ~x ~y bitmap
+
+  let draw_text ~pos:(x,y) (gc:gc) text =
+    let col = `RGB (0, 0, 0) in
+    gc # set_foreground col;
+    gc # string ~x ~y ~font:(Lazy.force font) text;
+    ()
 
   let bitmap_of_file ~fn = GdkPixbuf.from_file fn
 
@@ -112,7 +120,6 @@ let draw_brush (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) x y =
   !backing#rectangle ~x ~y ~width ~height ~filled:true ();
   area#misc#draw (Some update_rect)
 
-(* let font = lazy (Gdk.Font.load "Courier New") *)
 
 let button_pressed send area backing ev =
   if GdkEvent.Button.button ev = 1 then
@@ -158,11 +165,16 @@ let create_text packing =
 let drag_data_received context ~x ~y data ~info ~time =
     context # finish ~success:true ~del:true ~time
 
+let make_symgen () =
+  let i = ref (-1) in
+  (fun () -> incr(i); Printf.sprintf "dice<%d>" !i)
+let gensym = make_symgen ()
+
 
 let drag_drop (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) (src_widget : GTree.view) (context : GObj.drag_context) ~x ~y ~time =
   let a = src_widget#drag#get_data ~target:"INTEGER"  ~time context in
 
-      Lwt.ignore_result (canvas (fun c -> Canvas.add c (Tile.dice ~x ~y)));
+      Lwt.ignore_result (canvas (fun c -> Canvas.add c (Tile.dice ~x ~y (gensym ()))));
       true
         
 let rec update_display send (area:GMisc.drawing_area) () =

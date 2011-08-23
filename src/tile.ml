@@ -4,6 +4,7 @@ module type GRAPHICS_BACKEND = sig
   type bitmap
   type gc
   val draw_bitmap : pos:(int * int) -> gc -> bitmap -> unit
+  val draw_text : pos:(int * int) -> gc -> string -> unit
   val bitmap_of_file : fn:string -> bitmap
   val size_of_bitmap : bitmap -> int*int
   val bitmap : string -> bitmap
@@ -25,6 +26,7 @@ module Make(B : GRAPHICS_BACKEND) = struct
               pos : (int * int);
               drag: drag option;
               graphics : string;
+              id: string;
             }
 
   and drag = { dragged : bool;
@@ -67,7 +69,7 @@ module Make(B : GRAPHICS_BACKEND) = struct
   and default_drag = { dragged = false; drag_x = 0; drag_y = 0 }
 
 (* TODO: Move somewher else *)
-  and dice ~x ~y =
+  and dice ~x ~y id =
     let fn = "resources/images/g6-1.png" in
     let bitmap = B.bitmap_of_file ~fn in
     let width, height = B.size_of_bitmap bitmap in
@@ -78,10 +80,13 @@ module Make(B : GRAPHICS_BACKEND) = struct
       pos = pos;
       drag = Some default_drag;
       graphics = fn;
+      id;
     }
 
   and draw canvas t =
-    B.draw_bitmap ~pos:t.pos canvas (B.bitmap t.graphics)
+    B.draw_bitmap canvas (B.bitmap t.graphics) ~pos:t.pos;
+    B.draw_text canvas t.id ~pos:t.pos
+      
 
   and print t =
     Printf.printf "width: %d height: %d pos: (%d %d)" t.width t.height (fst t.pos) (snd t.pos)
