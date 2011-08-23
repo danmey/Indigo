@@ -19,7 +19,6 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
   --------------------------------------------------------------------------*)
 
-type t = { host:string; port:int; uname:string }
 
 let mOk = "Ok"
 let mCancel = "Cancel"
@@ -96,6 +95,7 @@ let parse_login str =
   rexp 8 login_regex str,
   rexp 13 login_regex str
 
+
 let err msg =
   let d = GWindow.message_dialog ~message:msg
     ~message_type:`ERROR
@@ -104,34 +104,23 @@ let err msg =
   d # connect # response ~callback:(fun _ -> d # destroy());
   ignore(d # show())
 
-let validate_login text =
-  let uname, host, ip, port = parse_login text in
-  let host = match host, ip with 
-    | (Some h, None) -> Some h  
-    | (None , Some h) ->  Some h 
-    | _ -> None in
-  let err what = err (Printf.sprintf "%s needs to be specified or is incorrect!" what) in
-  match host with
-    | None -> err "Host or IP"; None
-    | Some host -> begin match port with
-        | None -> err "Port"; None
-        | Some port -> Some (uname, host, int_of_string port) end
-  
-
-let rec login_widget ~title ?ok ?cancel ?(text="") message =
+let rec server_widget data message =
+  let text = LoginData.to_string data in
+  let title = "Paste your server details or click paste" in
+  let connect = "Connect" in
   let vbox = GPack.vbox () in
   let we_chaine = GEdit.entry ~text ~packing:vbox#add () in
   if text <> "" then
     we_chaine#select_region 0 (we_chaine#text_length);
   let do_login w text =
-    match validate_login text with
-      | Some (uname, host, port) -> w # destroy (); begin 
-        let data = { uname = ""; host; port } in
-        match uname with
-          | Some uname -> Some { data with uname }
-          | None -> uname_widget data end
-      | None -> None in
-    input_widget_ex ~widget:vbox#coerce ~event:we_chaine#event
+    try
+    let data = LoginData.of_string text in
+    w # destroy ();
+    login_widget data
+    with LoginData.Parse_error str -> err str; None
+  in
+  input_widget_ex 
+      ~widget:vbox#coerce ~event:we_chaine#event
       ~bind_ok:true
       ~expand: false
       ~title
@@ -142,25 +131,25 @@ let rec login_widget ~title ?ok ?cancel ?(text="") message =
                   let text = GtkBase.Clipboard.wait_for_text clipboard in
                   match text with
                     | Some text -> do_login w text
-                  | None -> err "Clipboard contents need to be text!"; None
+                    | None -> err "Clipboard contents need to be text!"; None
               end] message
 
 
-and uname_widget data =
+and login_widget data =
   let vbox = GPack.vbox () in
-  let we_chaine = GEdit.entry ~text:(Printf.sprintf "%s:%d" data.host data.port) ~packing:vbox#add () in
-  match GToolbox.input_string
-    ~title:"Your private login details"
-    ~ok:"Login"
-    ~text:"" "aka" with
-    | Some uname -> Some { data with uname }
-    | None -> uname_widget data
+  let uname_entry = GEdit.entry ~packing:vbox#add () in
+  let pass_entry =  GEdit.entry ~packing:vbox#add () in
+  input_widget_ex
+    ~widget:vbox#coerce ~event:uname_entry#event
+    ~bind_ok:true
+    ~expand: false
+    ~title:"Login"
+    ~accept:(mOk, fun w -> w # destroy (); None)
+    ~actions:["Clipboard login", begin fun w -> w # destroy (); Some data end] "Login details"
+
 
 let create k =
   ignore (GMain.init ());
-  login_widget
-    ~title:"Paste your login details or click paste"
-    ~ok:"Login"
-    ~text:"danmey.org:1234" "INDIGO";;
+  server_widget { LoginData.host = "danmey.org"; LoginData.port = 1234; LoginData.login = None } "INDIGO";;
 
 create "11";;
