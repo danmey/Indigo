@@ -22,9 +22,9 @@ open Lwt_unix
 open Lwt_chan
 
 
-module Make(C : sig type command end)(R : sig val receive : C.command -> unit end) = struct
+module Make(C : sig type t end)(R : sig val receive : C.t -> unit end) = struct
 
-  let write out_ch (cmd : C.command) =
+  let write out_ch (cmd : C.t) =
     try_lwt
       lwt () = output_value out_ch cmd in
       flush out_ch
@@ -34,7 +34,7 @@ module Make(C : sig type command end)(R : sig val receive : C.command -> unit en
 
   let read_val in_ch =
     try_lwt
-      input_value in_ch >>= fun (v : C.command) -> return (Some v)
+      input_value in_ch >>= fun (v : C.t) -> return (Some v)
     with 
       | End_of_file -> return None
       | Unix.Unix_error (_,_,_) -> return None
