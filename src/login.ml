@@ -151,18 +151,36 @@ and login_widget data =
       pass_entry # set_text pass;
       pass_entry # misc # grab_focus () end;
 
+  let from_widgets data =
+    if uname_entry # text = "" then
+      begin err "Please specify user name!"; None end
+    else
+    if pass_entry # text = "" then
+      begin err "Please specify password!"; None end
+    else
+      try
+        Some (LoginData.validate 
+                { data with LoginData.login =
+                    Some (LoginData.FullLogin 
+                            ({LoginData.uname = uname_entry # text;
+                              LoginData.pass = pass_entry # text })) })
+      with LoginData.Parse_error str ->
+        begin err str; None end in
+
   input_widget_ex
     ~widget:vbox#coerce ~event:uname_entry#event
     ~bind_ok:true
     ~expand: false
     ~title:"Login"
-    ~accept:(mOk, fun w -> w # destroy (); None)
+    ~accept:(mOk, fun w -> 
+      match from_widgets data with
+        | Some _ as data -> w # destroy (); data
+        | None -> None)
     ~actions:["Create", begin fun w -> w # destroy (); Some data end] "Login details"
 
-let create =
-  ignore (GMain.init ());
+let create () =
   server_widget { 
-    LoginData.host = "danmey.org"; 
+    LoginData.host = "localhost"; 
     LoginData.port = 1234; 
     LoginData.login = None } 
     "INDIGO";;

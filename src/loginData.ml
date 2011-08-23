@@ -71,4 +71,5 @@ let to_string ({ host; port; login } as d) =
     end
     | None -> "" end ^ to_string_server_only d
 
-    
+let validate data =
+  of_string (to_string data)

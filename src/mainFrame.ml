@@ -185,12 +185,11 @@ lwt () =
     
     let waiter, wakener = Lwt.wait () in
     
-    let port = (int_of_string (Sys.argv.(1))) in
+    (* let port = (int_of_string (Sys.argv.(1))) in *)
     
     let width = 200 in
     let height = 200 in
   
-    let () = Login.create () in
     let window = GWindow.window ~title:"Indigo" () in
 
     let _ = window#connect#destroy ~callback:(fun () -> wakeup wakener ()) in
@@ -202,35 +201,37 @@ lwt () =
 
   (* Create the drawing area *)
     let area = GMisc.drawing_area ~width ~height ~packing:main_paned#add () in
-
-    lwt send = Connection.Client.connect ~port ~host:(Sys.argv.(2)) in
-    ignore(area#event#connect#expose ~callback:(expose area backing));
-    ignore(area#event#connect#configure ~callback:(configure window backing));
+    match Login.create () with
+      | None -> return ()
+      | Some login_data ->
+        lwt send = Connection.Client.connect login_data  in
+        ignore(area#event#connect#expose ~callback:(expose area backing));
+        ignore(area#event#connect#configure ~callback:(configure window backing));
     
     (* Event signals *)
-    ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
-    ignore(area#event#connect#button_press ~callback:(button_pressed send area backing));
-    ignore(area#event#connect#button_release ~callback:(button_release send area backing));
-    ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
+        ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
+        ignore(area#event#connect#button_press ~callback:(button_pressed send area backing));
+        ignore(area#event#connect#button_release ~callback:(button_release send area backing));
+        ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
     
-    area#event#add [`EXPOSURE; 
-                  `LEAVE_NOTIFY; 
-                  `BUTTON_PRESS; 
-                  `BUTTON_RELEASE; 
-                  `POINTER_MOTION; 
-                  `POINTER_MOTION_HINT];
-    
-    let view = ObjectTree.create ~packing:tool_vbox#add ~canvas:area () in
-    let target_entry = { Gtk.target= "INTEGER"; Gtk.flags= []; Gtk.info=123 } in
-    view#drag#source_set ~modi:[`BUTTON1] ~actions:[`COPY] [target_entry];
-    area#drag#dest_set ~flags:[`HIGHLIGHT;`MOTION] ~actions:[`COPY] [target_entry];
-    area#drag#connect#data_received ~callback:drag_data_received;
-    area#drag#connect#drop ~callback:(drag_drop area backing view);
-    let quit_button = GButton.button ~label:"Quit" ~packing:tool_vbox#add () in
-    ignore(window#show ());
-
-    update_display send area ();
+        area#event#add [`EXPOSURE; 
+                        `LEAVE_NOTIFY; 
+                        `BUTTON_PRESS; 
+                        `BUTTON_RELEASE; 
+                        `POINTER_MOTION; 
+                        `POINTER_MOTION_HINT];
+        
+        let view = ObjectTree.create ~packing:tool_vbox#add ~canvas:area () in
+        let target_entry = { Gtk.target= "INTEGER"; Gtk.flags= []; Gtk.info=123 } in
+        view#drag#source_set ~modi:[`BUTTON1] ~actions:[`COPY] [target_entry];
+        area#drag#dest_set ~flags:[`HIGHLIGHT;`MOTION] ~actions:[`COPY] [target_entry];
+        area#drag#connect#data_received ~callback:drag_data_received;
+        area#drag#connect#drop ~callback:(drag_drop area backing view);
+        let quit_button = GButton.button ~label:"Quit" ~packing:tool_vbox#add () in
+        ignore(window#show ());
+        
+        update_display send area ();
     (* Main loop: *)
-    waiter
+        waiter
 
  

@@ -90,7 +90,7 @@ end
 
 
 module Client = struct
-  let connect ~port ~host =
+  let connect { LoginData.port; LoginData.host } =
      lwt entry = gethostbyname host in
      let host = entry.h_addr_list.(0) in
      let addr = ADDR_INET (host, port) in
