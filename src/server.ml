@@ -5,6 +5,7 @@ module GtkBackend = struct
   let resources : (string, unit) Hashtbl.t = Hashtbl.create 137
 
   let draw_bitmap ~pos:((x:int),(y:int)) (gc:gc) (bitmap:bitmap) = ()
+  let draw_text ~pos:((x:int),(y:int)) (gc:gc) string = ()
 
   let bitmap_of_file ~(fn:string) = ()
 
@@ -20,7 +21,7 @@ module Canvas = Canvas.Make(GtkBackend)
 module Tile = Tile.Make(GtkBackend)
 module Protocol = Protocol.Make(Canvas)
 module Connection = Connection.Make(Protocol)(struct 
-  let receive (_ : Protocol.command) = () end)
+  let receive (_ : Protocol.client_cmd) = () end)
 
 lwt () =
     Connection.Server.start (int_of_string (Sys.argv.(1)))

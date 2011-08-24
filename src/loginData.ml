@@ -36,7 +36,7 @@ let of_string text =
   let uname, host, ip, port = parse_login text in
   let host = match host, ip with 
     | (Some h, None) -> Some h  
-    | (None , Some h) ->  Some h 
+    | (None , Some h) -> Some h 
     | _ -> None in
   let err what = err (Printf.sprintf "%s needs to be specified or is incorrect!" what) in
   match host with

@@ -22,9 +22,9 @@ open Lwt_unix
 open Lwt_chan
 
 
-module Make(C : sig type t end)(R : sig val receive : C.t -> unit end) = struct
+module Make(C : sig type t = Server of server_cmd | Client of client_cmd and client_cmd and server_cmd end)(R : sig val receive : C.client_cmd -> unit end) = struct
 
-  let write out_ch (cmd : C.t) =
+  let write out_ch (cmd : C.client_cmd) =
     try_lwt
       lwt () = output_value out_ch cmd in
       flush out_ch
@@ -32,7 +32,14 @@ module Make(C : sig type t end)(R : sig val receive : C.t -> unit end) = struct
       | End_of_file -> return ()
       | Unix.Unix_error (_,_,_) -> return ()
 
-  let read_val in_ch =
+  let read_val_client in_ch =
+    try_lwt
+      input_value in_ch >>= fun (v : C.client_cmd) -> return (Some v)
+    with
+      | End_of_file -> return None
+      | Unix.Unix_error (_,_,_) -> return None
+
+  let read_val_server in_ch =
     try_lwt
       input_value in_ch >>= fun (v : C.t) -> return (Some v)
     with 
@@ -57,13 +64,16 @@ module Server = struct
     let read_clients () = 
       List.map
         (fun (in_ch,_ , fd') ->
-          match_lwt read_val in_ch with
+          match_lwt read_val_server in_ch with
             | None -> return ()
             | Some cmd  ->
+              match cmd with
+                | C.Client cmd ->
                   Lwt_list.iter_p (fun (in_ch, out_ch, fd) ->
                     return (if Lwt_unix.unix_file_descr fd <> Lwt_unix.unix_file_descr fd' then 
                         Lwt.ignore_result (write out_ch cmd))
                       ) !clients
+                | _ -> return ()
                 ) !clients
     in
 
@@ -96,12 +106,12 @@ module Client = struct
      let addr = ADDR_INET (host, port) in
      lwt in_ch, out_ch = open_connection addr in
      let rec loop () =
-       lwt cmd = read_val in_ch in
+       lwt cmd = read_val_client in_ch in
        lwt () = return (match cmd with Some cmd -> R.receive cmd | None -> ()) in
        loop ()
     in
     Lwt.ignore_result (loop ());
-    return (fun cmd -> output_value out_ch cmd)
+    return (fun (cmd : C.t) -> output_value out_ch cmd)
 end
 
 end

@@ -78,12 +78,13 @@ let set_canvas c =
     (fun () ->
       return (ignore(the_canvas := c))))
 
-module Connection = Connection.Make(Protocol)(struct 
-  let receive = function
-    | Protocol.Quit -> 
-      print_endline "Quit"
-    | Protocol.State c -> 
-      set_canvas c end)
+ module Connection = Connection.Make(Protocol)(struct 
+   let receive = function
+     | Protocol.State c -> 
+      set_canvas c
+     | _ -> () 
+end
+)
     
 (* Create a new backing pixmap of the appropriate size *)
 let configure window backing ev =
@@ -127,7 +128,7 @@ let button_pressed send area backing ev =
       let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
       Lwt.ignore_result (canvas (fun c -> Canvas.button_pressed c ~x ~y))
     end;
-  canvas (fun c -> send (Protocol.State c); c);
+  canvas (fun c -> send (Protocol.Client (Protocol.State c)); c);
   true
 
 let button_release send area backing ev =
@@ -136,7 +137,7 @@ let button_release send area backing ev =
       let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
       Lwt.ignore_result (canvas (fun c -> Canvas.button_released c ~x ~y))
     end;
-  canvas (fun c -> send (Protocol.State c); c);
+  canvas (fun c -> send (Protocol.Client (Protocol.State c)); c);
   true
 
 let motion_notify send area backing ev =
@@ -149,7 +150,7 @@ let motion_notify send area backing ev =
   canvas (fun c -> 
     let c = Canvas.motion c ~x ~y in
     begin if Canvas.dragged c then
-        Lwt.ignore_result (send (Protocol.State c))
+        Lwt.ignore_result (send (Protocol.Client (Protocol.State c)))
     end;
     c);
   true
@@ -162,8 +163,10 @@ let create_text packing =
   let view = GText.view ~packing:scrolled_window#add () in
     view, scrolled_window#coerce
 
+
 let drag_data_received context ~x ~y data ~info ~time =
     context # finish ~success:true ~del:true ~time
+
 
 let make_symgen () =
   let i = ref (-1) in
@@ -177,6 +180,7 @@ let drag_drop (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) (src_widget :
       Lwt.ignore_result (canvas (fun c -> Canvas.add c (Tile.dice ~x ~y (gensym ()))));
       true
         
+
 let rec update_display send (area:GMisc.drawing_area) () =
   Pervasives.flush Pervasives.stdout;
   let x,y = 0,0 in
