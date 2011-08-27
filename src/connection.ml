@@ -1,5 +1,5 @@
 (*----------------------------------------------------------------------------
-  server.ml - Client server code.
+  connection.ml - Client server code.
   Copyright (C) 2011 Wojciech Meyer
 
   This program is free software: you can redistribute it and/or modify
