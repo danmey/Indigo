@@ -175,7 +175,7 @@ let gensym = make_symgen ()
 let drag_drop (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) (src_widget : GTree.view) (context : GObj.drag_context) ~x ~y ~time =
   let a = src_widget#drag#get_data ~target:"INTEGER"  ~time context in
 
-      Lwt.ignore_result (table (fun c -> Table.add c (Board.dice ~x ~y (gensym ()))));
+      Lwt.ignore_result (table (fun c -> Table.add c (Board.Element.dice ~x ~y (gensym ()))));
       true
         
 
