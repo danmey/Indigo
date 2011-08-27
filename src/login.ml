@@ -110,8 +110,12 @@ let rec server_widget data =
   let title = "Server details" in
   let vbox = GPack.vbox () in
   let we_chaine = GEdit.entry ~text ~packing:vbox#add () in
-  if text <> "" then
-    we_chaine#select_region 0 (we_chaine#text_length);
+  if text <> "" then begin
+    if LoginData.is_complete data then begin
+    we_chaine#set_text text
+    end;
+    we_chaine#select_region 0 (we_chaine#text_length); 
+  end;
   let do_login w text =
     try
     let data = LoginData.of_string text in
@@ -212,6 +216,7 @@ let cmd_options data =
 
 let create () =
   Config.with_profile (fun data ->
+    print_endline (LoginData.to_string data);
     if Array.length Sys.argv > 1 then
       cmd_options data
     else
