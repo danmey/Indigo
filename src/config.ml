@@ -1,6 +1,6 @@
 open Config_file
 
-let config_file = "/home/danmey/.indigo.ml"
+let config_file = (Unix.getpwuid (Unix.getuid ())).Unix.pw_dir ^ "/.indigo.ml"
 let default_host = "danmey.org"
 let default_uname = "wojtek"
 let default_port = 1234
