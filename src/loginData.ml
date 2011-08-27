@@ -72,10 +72,14 @@ let to_string ({ host; port; login } as d) =
     | None -> "" end ^ to_string_server_only d
 
 let validate data =
-  of_string (to_string data)
+  ignore(of_string (to_string data));
+  data
 
 let is_complete data =
-  validate data;
+  let _ = validate data in
   match data with
     | { login = Some (FullLogin _) } -> true
     | _ -> false
+
+let set_auth uname pass data =
+  {data with login = Some (FullLogin {uname; pass = Digest.to_hex (Digest.string pass)})}

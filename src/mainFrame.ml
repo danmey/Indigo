@@ -218,6 +218,9 @@ lwt () =
   (* Create the drawing area *)
     let area = GMisc.drawing_area ~width ~height ~packing:main_paned#add () in
     let login_data = Login.create () in
+    match login_data with
+      | None -> return ()
+      | Some login_data ->
         lwt send = Connection.Client.connect login_data  in
         ignore(area#event#connect#expose ~callback:(expose area backing));
         ignore(area#event#connect#configure ~callback:(configure window backing));

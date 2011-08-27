@@ -95,7 +95,6 @@ let parse_login str =
   rexp 8 login_regex str,
   rexp 13 login_regex str
 
-
 let err msg =
   let d = GWindow.message_dialog ~message:msg
     ~message_type:`ERROR
@@ -118,9 +117,13 @@ let rec server_widget data =
   end;
   let do_login w text =
     try
-    let data = LoginData.of_string text in
+    let new_data = LoginData.of_string text in
     w # destroy ();
-    login_widget data
+    login_widget { 
+      data with 
+      LoginData.host = new_data.LoginData.host;
+      LoginData.port = new_data.LoginData.port;
+    }
     with LoginData.Parse_error str -> err str; None
   in
   input_widget_ex 
@@ -151,8 +154,8 @@ and login_widget data =
     | Some (LoginData.Uname uname) -> 
       uname_entry # set_text uname; 
       pass_entry # misc # grab_focus ()
-    | Some (LoginData.FullLogin {LoginData.uname; LoginData.pass}) -> 
-      uname_entry # set_text uname; 
+    | Some (LoginData.FullLogin { LoginData.uname; LoginData.pass }) -> 
+      uname_entry # set_text uname;
       pass_entry # set_text pass;
       pass_entry # misc # grab_focus () end;
 
@@ -164,11 +167,8 @@ and login_widget data =
       begin err "Please specify password!"; None end
     else
       try
-        Some (LoginData.validate 
-                { data with LoginData.login =
-                    Some (LoginData.FullLogin 
-                            ({LoginData.uname = uname_entry # text;
-                              LoginData.pass = pass_entry # text })) })
+        Some (LoginData.validate (LoginData.set_auth uname_entry # text pass_entry # text data))
+
       with LoginData.Parse_error str ->
         begin err str; None end in
 
@@ -207,12 +207,12 @@ let cmd_options data =
     ^ "Please see LICENSE file for copying information."
   in
   Arg.parse spec nothing usage;
-  let login = match !uname, !pass with
-    | None, None -> data.LoginData.login
-    | Some uname, None -> Some (LoginData.Uname uname)
-    | Some uname, Some pass -> Some (LoginData.FullLogin {LoginData.uname=uname; LoginData.pass=pass})
-    | None, _ -> None in
-  { LoginData.host = !host; LoginData.port = !port; LoginData.login }
+  let data = { data with LoginData.host = !host; LoginData.port = !port } in
+  match !uname, !pass with
+    | None, None -> Some data
+    | Some uname, None -> Some { data with LoginData.login = Some (LoginData.Uname uname) }
+    | Some uname, Some pass -> Some (LoginData.set_auth uname pass data)
+    | None, _ -> None
 
 let create () =
   Config.with_profile (fun data ->
@@ -220,4 +220,4 @@ let create () =
     if Array.length Sys.argv > 1 then
       cmd_options data
     else
-      match server_widget data with Some data -> data | None -> data)
+      server_widget data)
