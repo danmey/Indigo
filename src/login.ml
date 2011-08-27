@@ -188,6 +188,7 @@ let cmd_options data =
   let port = ref data.LoginData.port in
   let uname = ref None in
   let pass = ref None in
+  let force_ui = ref false in
   let setopt opt uname = opt := Some (uname) in
   let nothing _ = () in
   let print_configuration () = print_endline (LoginData.to_string data) in
@@ -196,7 +197,8 @@ let cmd_options data =
      "Host address of to server to conect with. E.g. 'danmey.org', 'localhost' or '192.168.0.3'";
      "--port", Arg.Set_int port, "Port number that sever listens on. E.g. '1234'";
      "--uname", Arg.String (setopt uname), "User name. E.g. 'wojtek'";
-     "--pass", Arg.String (setopt pass), "Password hash.";
+     "--pass", Arg.String (setopt pass), "Password.";
+     "--force_ui", Arg.Unit (fun()->force_ui := true), "Force UI even when command line is specified.";
      "--print_configuration", Arg.Unit print_configuration, "Prints configuration"] in
   let usage = 
       "INDIGO client\n" 
@@ -208,16 +210,30 @@ let cmd_options data =
   in
   Arg.parse spec nothing usage;
   let data = { data with LoginData.host = !host; LoginData.port = !port } in
-  match !uname, !pass with
+  !force_ui, match !uname, !pass with
     | None, None -> Some data
     | Some uname, None -> Some { data with LoginData.login = Some (LoginData.Uname uname) }
     | Some uname, Some pass -> Some (LoginData.set_auth uname pass data)
     | None, _ -> None
 
 let create () =
-  Config.with_profile (fun data ->
-    print_endline (LoginData.to_string data);
-    if Array.length Sys.argv > 1 then
-      cmd_options data
+  Config.with_profile (fun data' ->
+    if Array.length Sys.argv > 1 then begin
+      let force_ui, data = cmd_options data' in
+      let data = match data with
+        | (Some d) as data  -> begin
+          try
+            if LoginData.is_complete d then
+              data
+            else begin
+              LoginData.validate d;
+              data end
+          with LoginData.Parse_error str -> print_endline str; None end
+        | None -> None in
+      if force_ui then
+        match data with
+          | Some data -> server_widget data
+          | None -> server_widget data'
+      else data end
     else
-      server_widget data)
+      server_widget data')
