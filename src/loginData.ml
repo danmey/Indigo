@@ -101,3 +101,18 @@ let is_complete data =
 
 let set_auth uname pass data =
   {data with login = Some (FullLogin {uname; pass = Digest.to_hex (Digest.string pass)})}
+
+let print_pairs { host;
+                  port;
+                  login } =
+  Printf.printf "host:\t%s\nport:\t%d\n" host port;
+  begin match login with
+    | Some (FullLogin { uname; pass; }) ->
+      Printf.printf "uname:\t%s\npass:\t%s\n" uname pass
+    | Some (Uname uname) -> Printf.printf "uname:\t%s\n" uname 
+    | None -> ()
+  end;
+  flush stdout
+
+  
+  

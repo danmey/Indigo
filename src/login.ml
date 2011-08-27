@@ -191,7 +191,7 @@ let cmd_options data =
   let force_ui = ref false in
   let setopt opt uname = opt := Some (uname) in
   let nothing _ = () in
-  let print_configuration () = print_endline (LoginData.to_string data) in
+  let print_configuration () = LoginData.print_pairs data in
   let spec = 
     ["--host", Arg.Set_string host, 
      "Host address of to server to conect with. E.g. 'danmey.org', 'localhost' or '192.168.0.3'";
@@ -199,7 +199,7 @@ let cmd_options data =
      "--uname", Arg.String (setopt uname), "User name. E.g. 'wojtek'";
      "--pass", Arg.String (setopt pass), "Password.";
      "--force_ui", Arg.Unit (fun()->force_ui := true), "Force UI even when command line is specified.";
-     "--print_configuration", Arg.Unit print_configuration, "Prints configuration"] in
+     "--print_configuration", Arg.Unit print_configuration, "Prints configuration as key-value pairs"] in
   let usage = 
       "INDIGO client\n" 
     ^ "An ultimate Indie games table\n"
