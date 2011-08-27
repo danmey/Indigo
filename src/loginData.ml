@@ -73,3 +73,9 @@ let to_string ({ host; port; login } as d) =
 
 let validate data =
   of_string (to_string data)
+
+let is_complete data =
+  validate data;
+  match data with
+    | { login = Some (FullLogin _) } -> true
+    | _ -> false

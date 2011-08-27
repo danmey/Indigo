@@ -95,7 +95,7 @@ let _ =
     | Before_options ->
 
         (* override default commands by ocamlfind ones *)
-        let ocamlfind x = S[A"ocamlfind"; A x] in
+        let ocamlfind x = S[A"ocamlfind"; A x; A "config_file.cmo"] in
         Options.ocamlc   := ocamlfind "ocamlc";
         Options.ocamlopt := ocamlfind "ocamlopt";
         Options.ocamldep := ocamlfind "ocamldep";

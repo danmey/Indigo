@@ -59,29 +59,29 @@ module GtkBackend = struct
 
 end
 
-module Canvas = Canvas.Make(GtkBackend)
-module Tile = Tile.Make(GtkBackend)
-module Protocol = Protocol.Make(Canvas)
+module Table = Table.Make(GtkBackend)
+module Board = Board.Make(GtkBackend)
+module Protocol = Protocol.Make(Table)
 
 (* Backing pixmap for drawing area *)
 let backing = ref (GDraw.pixmap ~width:200 ~height:200 ())
-let the_canvas = ref (Canvas.create ())
-let canvas_mutex = Lwt_mutex.create ()
-let canvas f =
-  Lwt_mutex.with_lock canvas_mutex 
+let the_table = ref (Table.create ())
+let table_mutex = Lwt_mutex.create ()
+let table f =
+  Lwt_mutex.with_lock table_mutex 
     (fun () ->
-      the_canvas := f !the_canvas;
+      the_table := f !the_table;
       return ())
 
-let set_canvas c =
-  Lwt.ignore_result (Lwt_mutex.with_lock canvas_mutex 
+let set_table c =
+  Lwt.ignore_result (Lwt_mutex.with_lock table_mutex 
     (fun () ->
-      return (ignore(the_canvas := c))))
+      return (ignore(the_table := c))))
 
  module Connection = Connection.Make(Protocol)(struct 
    let receive = function
      | Protocol.State c -> 
-      set_canvas c
+      set_table c
      | _ -> () 
 end
 )
@@ -126,18 +126,18 @@ let button_pressed send area backing ev =
   if GdkEvent.Button.button ev = 1 then
     begin
       let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
-      Lwt.ignore_result (canvas (fun c -> Canvas.button_pressed c ~x ~y))
+      Lwt.ignore_result (table (fun c -> Table.button_pressed c ~x ~y))
     end;
-  canvas (fun c -> send (Protocol.Client (Protocol.State c)); c);
+  table (fun c -> send (Protocol.Client (Protocol.State c)); c);
   true
 
 let button_release send area backing ev =
   if GdkEvent.Button.button ev = 1 then
     begin
       let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
-      Lwt.ignore_result (canvas (fun c -> Canvas.button_released c ~x ~y))
+      Lwt.ignore_result (table (fun c -> Table.button_released c ~x ~y))
     end;
-  canvas (fun c -> send (Protocol.Client (Protocol.State c)); c);
+  table (fun c -> send (Protocol.Client (Protocol.State c)); c);
   true
 
 let motion_notify send area backing ev =
@@ -147,9 +147,9 @@ let motion_notify send area backing ev =
 	else
       (int_of_float (GdkEvent.Motion.x ev), int_of_float (GdkEvent.Motion.y ev))
   in
-  canvas (fun c -> 
-    let c = Canvas.motion c ~x ~y in
-    begin if Canvas.dragged c then
+  table (fun c -> 
+    let c = Table.motion c ~x ~y in
+    begin if Table.dragged c then
         Lwt.ignore_result (send (Protocol.Client (Protocol.State c)))
     end;
     c);
@@ -177,7 +177,7 @@ let gensym = make_symgen ()
 let drag_drop (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) (src_widget : GTree.view) (context : GObj.drag_context) ~x ~y ~time =
   let a = src_widget#drag#get_data ~target:"INTEGER"  ~time context in
 
-      Lwt.ignore_result (canvas (fun c -> Canvas.add c (Tile.dice ~x ~y (gensym ()))));
+      Lwt.ignore_result (table (fun c -> Table.add c (Board.dice ~x ~y (gensym ()))));
       true
         
 
@@ -190,7 +190,7 @@ let rec update_display send (area:GMisc.drawing_area) () =
 
   !backing#set_foreground `WHITE;
   !backing#rectangle ~x:0 ~y:0 ~width ~height ~filled:true ();
-  Lwt.ignore_result (canvas (fun c -> Canvas.draw c !backing; c));
+  Lwt.ignore_result (table (fun c -> Table.draw c !backing; c));
   area#misc#draw (Some update_rect);
   Lwt.bind (Lwt_unix.sleep 0.01) (update_display send area)
 
@@ -217,9 +217,7 @@ lwt () =
 
   (* Create the drawing area *)
     let area = GMisc.drawing_area ~width ~height ~packing:main_paned#add () in
-    match Login.create () with
-      | None -> return ()
-      | Some login_data ->
+    let login_data = Login.create () in
         lwt send = Connection.Client.connect login_data  in
         ignore(area#event#connect#expose ~callback:(expose area backing));
         ignore(area#event#connect#configure ~callback:(configure window backing));

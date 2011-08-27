@@ -29,7 +29,7 @@ struct
   let find_syntaxes () = ["camlp4o"; "camlp4r"]
 
   (* ocamlfind command *)
-  let ocamlfind x = S[A"ocamlfind"; x]
+  let ocamlfind x = S[A"ocamlfind"; x; A "config_file.cmo"]
 
   let  before_options () =
     (* by using Before_options one let command line options have an higher priority *)

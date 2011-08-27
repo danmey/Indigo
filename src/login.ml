@@ -104,7 +104,8 @@ let err msg =
   d # connect # response ~callback:(fun _ -> d # destroy());
   ignore(d # show())
 
-let rec server_widget data message =
+let rec server_widget data =
+  let message = "Server data" in
   let text = LoginData.to_string data in
   let title = "Server details" in
   let vbox = GPack.vbox () in
@@ -178,10 +179,40 @@ and login_widget data =
         | None -> None)
     ~actions:["Create", begin fun w -> w # destroy (); Some data end] "Login details"
 
-let create () =
-  server_widget { 
-    LoginData.host = "localhost"; 
-    LoginData.port = 1234; 
-    LoginData.login = None } 
-    "INDIGO";;
+let cmd_options data =
+  let host = ref data.LoginData.host in
+  let port = ref data.LoginData.port in
+  let uname = ref None in
+  let pass = ref None in
+  let setopt opt uname = opt := Some (uname) in
+  let nothing _ = () in
+  let print_configuration () = print_endline (LoginData.to_string data) in
+  let spec = 
+    ["--host", Arg.Set_string host, 
+     "Host address of to server to conect with. E.g. 'danmey.org', 'localhost' or '192.168.0.3'";
+     "--port", Arg.Set_int port, "Port number that sever listens on. E.g. '1234'";
+     "--uname", Arg.String (setopt uname), "User name. E.g. 'wojtek'";
+     "--pass", Arg.String (setopt pass), "Password hash.";
+     "--print_configuration", Arg.Unit print_configuration, "Prints configuration"] in
+  let usage = 
+      "INDIGO client\n" 
+    ^ "An ultimate Indie games table\n"
+    ^ "*Unreleased version*\n"
+    ^ "(C) 2011 Wojciech Meyer\n"
+    ^ "\n"
+    ^ "Please see LICENSE file for copying information."
+  in
+  Arg.parse spec nothing usage;
+  let login = match !uname, !pass with
+    | None, None -> data.LoginData.login
+    | Some uname, None -> Some (LoginData.Uname uname)
+    | Some uname, Some pass -> Some (LoginData.FullLogin {LoginData.uname=uname; LoginData.pass=pass})
+    | None, _ -> None in
+  { LoginData.host = !host; LoginData.port = !port; LoginData.login }
 
+let create () =
+  Config.with_profile (fun data ->
+    if Array.length Sys.argv > 1 then
+      cmd_options data
+    else
+      match server_widget data with Some data -> data | None -> data)
