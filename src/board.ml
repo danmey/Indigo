@@ -22,6 +22,7 @@ module type GRAPHICS_BACKEND = sig
   module Draw : sig
     val bitmap : pos:(int * int) -> gc -> bitmap -> unit
     val text : pos:(int * int) -> gc -> string -> unit
+    val rectangle : pos:(int*int) -> size:(int*int) -> gc -> unit
   end
   val bitmap_of_file : fn:string -> bitmap
   val size_of_bitmap : bitmap -> int*int
@@ -44,19 +45,59 @@ module Make(G : GRAPHICS_BACKEND) = struct
         pos : (int * int);
         drag: drag option;
         id: string;
-        graphics: string
+        graphics: string;
+        element: element
       }
   and drag = { dragged : bool;
                drag_x : int;
                drag_y : int }
+  and element = 
+    | Board
+    | Dice
+
+  let default_drag = { dragged = false; drag_x = 0; drag_y = 0 }
 
   module Board = struct
-
     let draw canvas t =
+      G.Draw.rectangle canvas ~pos:t.pos ~size:(t.width, t.height)
+
+    and board ~x ~y id =
+      let width = 200 in
+      let height = 200 in
+      let pos = x,y in
+      let fn = "" in
+      { width = width;
+        height = height;
+        pos = pos;
+        drag = Some default_drag;
+        graphics = fn;
+        id;
+        element = Board }
+  end
+
+  module Element = struct
+  (* TODO: Move somewher else *)
+    let rec dice ~x ~y id =
+      let fn = "resources/images/g6-1.png" in
+      let bitmap = G.bitmap_of_file ~fn in
+      let width, height = G.size_of_bitmap bitmap in
+      let pos = x, y in
+      ignore(G.load_bitmap fn);
+      { width = width;
+        height = height;
+        pos = pos;
+        drag = Some default_drag;
+        graphics = fn;
+        id;
+        element = Dice
+      }
+
+    and draw canvas t =
       G.Draw.bitmap canvas (G.bitmap t.graphics) ~pos:t.pos;
       G.Draw.text canvas t.id ~pos:t.pos
+
   end
-  module Element = struct
+
     let rec is_in t ~x ~y =     
       let xt, yt = t.pos in
       x >= xt && x < xt + t.width && y >= yt && y < yt + t.height
@@ -88,35 +129,17 @@ module Make(G : GRAPHICS_BACKEND) = struct
             { t with pos = (x-d.drag_x, y-d.drag_y) }
           else t
         | None -> t
-          
-    and default_drag = { dragged = false; drag_x = 0; drag_y = 0 }
 
-  (* TODO: Move somewher else *)
-    and dice ~x ~y id =
-      let fn = "resources/images/g6-1.png" in
-      let bitmap = G.bitmap_of_file ~fn in
-      let width, height = G.size_of_bitmap bitmap in
-      let pos = x, y in
-      ignore(G.load_bitmap fn);
-      { width = width;
-        height = height;
-        pos = pos;
-        drag = Some default_drag;
-        graphics = fn;
-        id;
-      }
-
-    and draw canvas t =
-      G.Draw.bitmap canvas (G.bitmap t.graphics) ~pos:t.pos;
-      G.Draw.text canvas t.id ~pos:t.pos
-        
-
+    and draw canvas t = 
+      match t.element with
+        | Board -> Board.draw canvas t
+        | Dice -> Element.draw canvas t
     and print t =
       Printf.printf "width: %d height: %d pos: (%d %d)" t.width t.height (fst t.pos) (snd t.pos)
     and dragged t =
       match t.drag with
         | Some drag -> true
         | None -> false 
-  end
+
 end
 

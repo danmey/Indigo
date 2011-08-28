@@ -31,9 +31,8 @@ let create_and_fill_model data =
     treestore#set ~row:toplevel ~column:col_last_name last_name;
   in
   List.iter append [
-    "Dice", "D4";
     "Dice", "D6";
-    "Dice", "D20"
+    "Board", "Board"
   ];
   treestore
  

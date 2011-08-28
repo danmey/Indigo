@@ -22,25 +22,40 @@ module Make(G : Board.GRAPHICS_BACKEND) = struct
   module Element = Board.Element
   type t = { boards: Board.t list }
 
+  let map_first_hit ~x ~y f t =
+    let rec loop hit acc =
+      function
+        | [] -> hit, List.rev acc
+        | el :: xs -> 
+          if hit = None && Board.is_in el ~x ~y then
+            loop (Some (f el)) acc xs
+          else
+            loop hit (el::acc) xs
+    in
+    match loop None [] t.boards with
+      | None, boards -> { boards }
+      | Some el, boards -> { boards = el :: boards }
+    
+    
   let rec create () = { boards = [] }
   and add canvas tile =
     { canvas with boards = tile :: canvas.boards; }
 
   and draw canvas gc =
-    List.iter (Element.draw gc) canvas.boards
+    List.iter (Board.draw gc) (List.rev canvas.boards)
 
   and button_pressed canvas ~x ~y =
-    { canvas with boards = List.map (fun t -> Element.button_pressed t ~x ~y) canvas.boards }
+    map_first_hit ~x ~y (fun t -> Board.button_pressed t ~x ~y) canvas
 
   and button_released canvas ~x ~y =
-    { canvas with boards = List.map (fun t -> Element.button_released t ~x ~y) canvas.boards }
+    { canvas with boards = List.map (fun t -> Board.button_released t ~x ~y) canvas.boards }
 
   and motion canvas ~x ~y =
-    { canvas with boards = List.map (fun t -> Element.motion t ~x ~y) canvas.boards }
+    { canvas with boards = List.map (fun t -> Board.motion t ~x ~y) canvas.boards }
 
-  and print c = List.iter (fun t -> Element.print t; print_endline ""; flush stdout) c.boards
+  and print c = List.iter (fun t -> Board.print t; print_endline ""; flush stdout) c.boards
     
-  and dragged canvas = List.exists Element.dragged canvas.boards
+  and dragged canvas = List.exists Board.dragged canvas.boards
 
   and replace_item canvas id ~item =
     let rec loop = function

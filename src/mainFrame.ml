@@ -36,6 +36,15 @@ module GtkBackend = struct
       gc # set_foreground col;
       gc # string ~x ~y ~font:(Lazy.force font) text;
       ()
+        
+    let rectangle ~pos:(x,y) ~size:(width,height) (gc:gc) = 
+      let col = `RGB (255, 255, 255) in
+      gc # set_foreground `WHITE;
+      gc # set_background `WHITE;
+      gc # rectangle ~filled:true ~x ~y ~width ~height ();
+      let col = `RGB (0, 0, 0) in
+      gc # set_foreground `BLACK;
+      gc # rectangle ~x ~y ~width ~height ()
   end
   let bitmap_of_file ~fn = GdkPixbuf.from_file fn
 
@@ -173,10 +182,19 @@ let make_symgen () =
 let gensym = make_symgen ()
 
 
-let drag_drop (area:GMisc.drawing_area) (backing:GDraw.pixmap ref) (src_widget : GTree.view) (context : GObj.drag_context) ~x ~y ~time =
+let drag_drop 
+    (area : GMisc.drawing_area) 
+    (backing : GDraw.pixmap ref) 
+    (src_widget : GTree.view) 
+    (context : GObj.drag_context) ~x ~y ~time =
   let a = src_widget#drag#get_data ~target:"INTEGER"  ~time context in
 
-      Lwt.ignore_result (table (fun c -> Table.add c (Board.Element.dice ~x ~y (gensym ()))));
+      Lwt.ignore_result 
+        (table 
+           (fun c ->
+             
+             Table.add c (Board.Board.board ~x ~y (gensym ()))));
+  
       true
         
 
