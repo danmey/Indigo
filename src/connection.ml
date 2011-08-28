@@ -22,7 +22,18 @@ open Lwt_unix
 open Lwt_chan
 
 
-module Make(C : sig type t = Server of server_cmd | Client of client_cmd and client_cmd and server_cmd end)(R : sig val receive : C.client_cmd -> unit end) = struct
+module Make(C : sig 
+  type client_cmd =
+    | MoveElement of string * (int * int)
+    | Login of string
+    | BadAuth of string
+  type server_cmd =
+    | Disconnect of string
+    | RequestLogin of string * string
+  type t =
+    | Server of server_cmd
+    | Client of client_cmd
+end)(R : sig val receive : C.client_cmd -> unit end) = struct
 
   let write out_ch (cmd : C.client_cmd) =
     try_lwt
@@ -59,11 +70,11 @@ module Server = struct
     let host = entry.h_addr_list.(0) in
     let addr = ADDR_INET (host, port) in
     let server_socket = socket PF_INET SOCK_STREAM 0 in
-
+    let passwd = Config.Server.read () in
     let clients = ref [] in
     let read_clients () = 
       List.map
-        (fun (in_ch,_ , fd') ->
+        (fun (in_ch,out_channel , fd') ->
           match_lwt read_val_server in_ch with
             | None -> return ()
             | Some cmd  ->
@@ -73,7 +84,20 @@ module Server = struct
                     return (if Lwt_unix.unix_file_descr fd <> Lwt_unix.unix_file_descr fd' then 
                         Lwt.ignore_result (write out_ch cmd))
                       ) !clients
-                | _ -> return ()
+                | C.Server cmd ->
+                  return (match cmd with
+                    | C.RequestLogin (uname, pass) ->
+                      print_endline uname;
+                      print_endline pass;
+                      let pass' = Digest.to_hex (Digest.string (List.assoc uname passwd)) in
+                      print_endline pass';
+                      if pass = pass' then begin
+                        print_endline "Authorised!";
+                        Lwt.ignore_result (output_value out_channel (C.Client (C.Login uname)))
+                      end
+                      else
+                        Lwt.ignore_result (output_value out_channel (C.Client (C.BadAuth uname))))
+                    | _ ->  return ()
                 ) !clients
     in
 
@@ -100,7 +124,10 @@ end
 
 
 module Client = struct
-  let connect { LoginData.port; LoginData.host } =
+  type 'a result = 
+    | Authorised of 'a
+    | BadLogin
+  let connect { LoginData.port; LoginData.host; LoginData.login } =
      lwt entry = gethostbyname host in
      let host = entry.h_addr_list.(0) in
      let addr = ADDR_INET (host, port) in
@@ -110,8 +137,19 @@ module Client = struct
        lwt () = return (match cmd with Some cmd -> R.receive cmd | None -> ()) in
        loop ()
     in
-    Lwt.ignore_result (loop ());
-    return (fun (cmd : C.t) -> output_value out_ch cmd)
+    match login with
+      | Some(LoginData.FullLogin {LoginData.uname; LoginData.pass}) ->
+        let rec loop2 () =
+          lwt cmd = read_val_server in_ch in
+          print_endline "ha!";
+          match cmd with
+            | Some(C.Client (C.Login uname')) when uname = uname' ->
+                return (Authorised (fun (cmd : C.t) -> output_value out_ch cmd))
+            | Some(C.Client (C.BadAuth uname')) when uname = uname' ->
+                return BadLogin
+            | _ ->  loop2 () in
+            lwt () = output_value out_ch (C.Server (C.RequestLogin (uname, pass))) in
+            lwt a = loop2 () in
+            return a
 end
-
 end

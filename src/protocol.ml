@@ -1,11 +1,10 @@
-
-module Make(B : sig type t end) = struct
+  type client_cmd =
+    | MoveElement of string * (int * int)
+    | Login of string
+    | BadAuth of string
+  type server_cmd =
+    | Disconnect of string
+    | RequestLogin of string * string
   type t =
     | Server of server_cmd
     | Client of client_cmd
-  and client_cmd =
-    | State of B.t
-    | MoveElement of string * (int * int)
-  and server_cmd =
-    | Disconnect of string
-end

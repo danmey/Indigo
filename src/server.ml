@@ -37,10 +37,8 @@ end
 
 module Canvas = Table.Make(GtkBackend)
 module Board = Board.Make(GtkBackend)
-module Protocol = Protocol.Make(Canvas)
 module Connection = Connection.Make(Protocol)(struct 
   let receive (_ : Protocol.client_cmd) = () end)
 
 lwt () =
-  Config.Server.read ();
   Connection.Server.start (int_of_string (Sys.argv.(1)))

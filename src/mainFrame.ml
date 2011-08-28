@@ -59,7 +59,7 @@ end
 
 module Table = Table.Make(GtkBackend)
 module Board = Board.Make(GtkBackend)
-module Protocol = Protocol.Make(Table)
+(* module Protocol = Protocol.Make(Table) *)
 
 (* Backing pixmap for drawing area *)
 let backing = ref (GDraw.pixmap ~width:200 ~height:200 ())
@@ -78,8 +78,8 @@ let set_table c =
 
  module Connection = Connection.Make(Protocol)(struct 
    let receive = function
-     | Protocol.State c -> 
-      set_table c
+     (* | Protocol.State c ->  *)
+     (*  set_table c *)
      | _ -> () 
 end
 )
@@ -126,7 +126,7 @@ let button_pressed send area backing ev =
       let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
       Lwt.ignore_result (table (fun c -> Table.button_pressed c ~x ~y))
     end;
-  table (fun c -> send (Protocol.Client (Protocol.State c)); c);
+  (* table (fun c -> send (Protocol.Client (Protocol.State c)); c); *)
   true
 
 let button_release send area backing ev =
@@ -135,7 +135,7 @@ let button_release send area backing ev =
       let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
       Lwt.ignore_result (table (fun c -> Table.button_released c ~x ~y))
     end;
-  table (fun c -> send (Protocol.Client (Protocol.State c)); c);
+  (* table (fun c -> send (Protocol.Client (Protocol.State c)); c); *)
   true
 
 let motion_notify send area backing ev =
@@ -148,7 +148,8 @@ let motion_notify send area backing ev =
   table (fun c -> 
     let c = Table.motion c ~x ~y in
     begin if Table.dragged c then
-        Lwt.ignore_result (send (Protocol.Client (Protocol.State c)))
+        ()
+        (* Lwt.ignore_result (send (Protocol.Client (Protocol.State c))) *)
     end;
     c);
   true
@@ -215,11 +216,14 @@ lwt () =
 
   (* Create the drawing area *)
     let area = GMisc.drawing_area ~width ~height ~packing:main_paned#add () in
+    let rec login_loop () =
     let login_data = Login.create () in
     match login_data with
       | None -> return ()
       | Some login_data ->
-        lwt send = Connection.Client.connect login_data  in
+        match_lwt Connection.Client.connect login_data with
+          | Connection.Client.BadLogin -> login_loop ()
+          | Connection.Client.Authorised send ->
         ignore(area#event#connect#expose ~callback:(expose area backing));
         ignore(area#event#connect#configure ~callback:(configure window backing));
     
@@ -246,7 +250,10 @@ lwt () =
         ignore(window#show ());
         
         update_display send area ();
+    
     (* Main loop: *)
         waiter
+    in
+    login_loop ()
 
  
