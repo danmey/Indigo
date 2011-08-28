@@ -188,13 +188,15 @@ let drag_drop
     (src_widget : GTree.view) 
     (context : GObj.drag_context) ~x ~y ~time =
   let a = src_widget#drag#get_data ~target:"INTEGER"  ~time context in
-
       Lwt.ignore_result 
         (table 
            (fun c ->
              match (ObjectTree.selected src_widget) with 
-               | Some `Dice -> Table.add c (Board.Element.dice ~x ~y (gensym ()))
-               | Some `Board -> Table.add c (Board.Board.board ~x ~y (gensym ()))
+               | Some `Dice -> 
+                 begin match Table.try_drop ~x ~y c with
+                   | Some board -> Table.add_element c board (Board.Element.dice ~x ~y (gensym ()))
+                   | None -> c end
+               | Some `Board -> Table.add c (Board.board ~x ~y (gensym ()))
                | _ -> c
            ));  
       true

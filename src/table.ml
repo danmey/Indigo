@@ -20,9 +20,9 @@
 module Make(G : Board.GRAPHICS_BACKEND) = struct
   module Board = Board.Make(G)
   module Element = Board.Element
-  type t = { boards: Board.element list }
+  type t = { boards: Board.t list }
 
-  let map_first_hit ~x ~y f t =
+  let map_first_hit ~x ~y f boards =
     let rec loop hit acc =
       function
         | [] -> hit, List.rev acc
@@ -32,21 +32,33 @@ module Make(G : Board.GRAPHICS_BACKEND) = struct
           else
             loop hit (el::acc) xs
     in
-    match loop None [] t.boards with
-      | None, boards -> { boards }
-      | Some el, boards -> { boards = el :: boards }
+    match loop None [] boards with
+      | None, boards -> boards
+      | Some el, boards -> el :: boards
     
     
   let rec create () = { boards = [] }
 
-  and add canvas tile =
-    { boards = tile :: canvas.boards; }
+  and add table tile =
+    { table with boards = tile :: table.boards; }
+
+  and add_element table board' element = 
+    let rec loop = function
+      | ({Board.board; Board.elements} as b) :: xs when b == board' ->
+        let x, y = element.Board.pos in
+        let bx, by = board.Board.pos in
+        let pos = x - bx, y - by in
+        let elements = { element with Board.pos = pos } :: elements in
+        {b with Board.elements} :: xs
+      | x :: xs -> x :: loop xs 
+    in
+    { table with boards = loop table.boards }
 
   and draw canvas gc =
     List.iter (Board.draw gc) (List.rev canvas.boards)
 
-  and button_pressed canvas ~x ~y =
-    map_first_hit ~x ~y (fun t -> Board.button_pressed ~x ~y t) canvas
+  and button_pressed table ~x ~y =
+    { table with boards = map_first_hit ~x ~y (fun t -> Board.button_pressed ~x ~y t) table.boards }
 
   and button_released canvas ~x ~y =
     { canvas with boards = List.map (fun t -> Board.button_released t ~x ~y) canvas.boards }
@@ -58,23 +70,26 @@ module Make(G : Board.GRAPHICS_BACKEND) = struct
     
   and dragged canvas = List.exists Board.dragged canvas.boards
 
-  and replace_item canvas id ~item =
+  and replace_item table id ~item =
     let rec loop = function
       | [] -> []
-      | i :: xs ->
-        if id = Board.id i then
+      | {Board.board} as i :: xs ->
+        if id = board.Board.id then
           item :: loop xs
         else
           i :: loop xs
     in
-    { canvas with boards = loop canvas.boards }
+    { table with boards = loop table.boards }
 
   and find_item canvas id =
-    List.find (fun t -> Board.id t = id) canvas.boards
-    
+    List.find (fun {Board.board} -> board.Board.id = id) canvas.boards
+  and try_drop ~x ~y table =
+    try
+      Some (List.find (fun b -> Board.is_in ~x ~y b) table.boards)
+    with Not_found -> None
   (* and move_item canvas id ~x ~y = *)
   (*   let item = find_item canvas id in *)
   (*   replace_item canvas id ~item:{item with Board.pos=(x,y) } *)
-
+      
 end
 
