@@ -113,6 +113,3 @@ let print_pairs { host;
     | None -> ()
   end;
   flush stdout
-
-  
-  

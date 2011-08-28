@@ -19,6 +19,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
   --------------------------------------------------------------------------*)
 
+module Config = Config.Client
 
 let mOk = "Ok"
 let mCancel = "Cancel"
@@ -27,7 +28,7 @@ let ldestroy f w = w # destroy (); f ()
 let ldestroy' w = ldestroy (fun () -> None) w
 
 let input_widget_ex ~widget ~event ~bind_ok ~expand ?(actions=[])
-    ?(accept=(mOk, ldestroy')) ?(cancel=(mCancel, ldestroy'))
+    ?(accept=(mOk, ldestroy')) ?(cancel=(mCancel, ldestroy')) ?(init=(fun _ -> ()))
     ~title message =
 
   let retour = ref None in
@@ -67,6 +68,7 @@ let input_widget_ex ~widget ~event ~bind_ok ~expand ?(actions=[])
     end;
 
   widget#misc#grab_focus ();
+  init widget;
   window#show ();
   GMain.Main.main ();
 
@@ -100,7 +102,7 @@ let err msg =
     ~message_type:`ERROR
     ~modal:true
     ~buttons:GWindow.Buttons.close () in
-  d # connect # response ~callback:(fun _ -> d # destroy());
+  ignore(d # connect # response ~callback:(fun _ -> d # destroy()));
   ignore(d # show())
 
 let rec server_widget data =
@@ -146,18 +148,11 @@ and login_widget data =
   let vbox = GPack.vbox () in
   let uname_entry = GEdit.entry ~packing:vbox#add () in
   let pass_entry =  GEdit.entry ~packing:vbox#add () in
+  let select_text (w : GEdit.entry) =
+    w#select_region 0 (w#text_length)
+  in
 
-  begin match data.LoginData.login with
-    | None -> 
-      uname_entry # set_text "<Indigo user name>"; 
-      uname_entry # misc # grab_focus ()
-    | Some (LoginData.Uname uname) -> 
-      uname_entry # set_text uname; 
-      pass_entry # misc # grab_focus ()
-    | Some (LoginData.FullLogin { LoginData.uname; LoginData.pass }) -> 
-      uname_entry # set_text uname;
-      pass_entry # set_text pass;
-      pass_entry # misc # grab_focus () end;
+  pass_entry # set_visibility false;
 
   let from_widgets data =
     if uname_entry # text = "" then
@@ -177,6 +172,22 @@ and login_widget data =
     ~bind_ok:true
     ~expand: false
     ~title:"Login"
+    ~init:(fun w ->
+      begin match data.LoginData.login with
+        | None -> 
+          uname_entry # set_text "<Indigo user name>";
+          select_text uname_entry
+            
+        | Some (LoginData.Uname uname) -> 
+          uname_entry # set_text uname; 
+          select_text pass_entry
+            
+        | Some (LoginData.FullLogin { LoginData.uname; LoginData.pass }) -> 
+          uname_entry # set_text uname;
+          pass_entry # set_text pass;
+          select_text pass_entry
+      end;
+    )
     ~accept:(mOk, fun w -> 
       match from_widgets data with
         | Some _ as data -> w # destroy (); data
@@ -198,7 +209,7 @@ let cmd_options data =
      "--port", Arg.Set_int port, "Port number that sever listens on. E.g. '1234'";
      "--uname", Arg.String (setopt uname), "User name. E.g. 'wojtek'";
      "--pass", Arg.String (setopt pass), "Password.";
-     "--force_ui", Arg.Unit (fun()->force_ui := true), "Force UI even when command line is specified.";
+     "--force_ui", Arg.Set force_ui, "Force UI even when command line is specified.";
      "--print_configuration", Arg.Unit print_configuration, "Prints configuration as key-value pairs"] in
   let usage = 
       "INDIGO client\n" 

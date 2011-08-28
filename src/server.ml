@@ -42,4 +42,5 @@ module Connection = Connection.Make(Protocol)(struct
   let receive (_ : Protocol.client_cmd) = () end)
 
 lwt () =
-    Connection.Server.start (int_of_string (Sys.argv.(1)))
+  Config.Server.read ();
+  Connection.Server.start (int_of_string (Sys.argv.(1)))
