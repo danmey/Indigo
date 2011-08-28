@@ -38,6 +38,7 @@ module Make(G : Board.GRAPHICS_BACKEND) = struct
     
     
   let rec create () = { boards = [] }
+
   and add canvas tile =
     { canvas with boards = tile :: canvas.boards; }
 

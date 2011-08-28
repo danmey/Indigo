@@ -35,7 +35,15 @@ let create_and_fill_model data =
     "Board", "Board"
   ];
   treestore
- 
+
+let selected (view:GTree.view) =
+  match view # selection # get_selected_rows with
+    | row :: _ ->
+      let el = view # model # get ~row:(view # model # get_iter row) ~column:col_first_name in
+      Some (match el with
+        | "Dice" -> `Dice
+        | "Board" -> `Board)
+    | _ -> None
 let create ~packing ~(canvas:GMisc.drawing_area) () =
   let view = GTree.view ~packing () in
 

@@ -192,9 +192,11 @@ let drag_drop
       Lwt.ignore_result 
         (table 
            (fun c ->
-             
-             Table.add c (Board.Board.board ~x ~y (gensym ()))));
-  
+             match (ObjectTree.selected src_widget) with 
+               | Some `Dice -> Table.add c (Board.Element.dice ~x ~y (gensym ()))
+               | Some `Board -> Table.add c (Board.Board.board ~x ~y (gensym ()))
+               | _ -> c
+           ));  
       true
         
 
