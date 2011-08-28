@@ -22,9 +22,10 @@ module GtkBackend = struct
 
   let resources : (string, unit) Hashtbl.t = Hashtbl.create 137
 
-  let draw_bitmap ~pos:((x:int),(y:int)) (gc:gc) (bitmap:bitmap) = ()
-  let draw_text ~pos:((x:int),(y:int)) (gc:gc) string = ()
-
+  module Draw = struct
+  let bitmap ~pos:((x:int),(y:int)) (gc:gc) (bitmap:bitmap) = ()
+  let text ~pos:((x:int),(y:int)) (gc:gc) string = ()
+  end
   let bitmap_of_file ~(fn:string) = ()
 
   let size_of_bitmap (bitmap:unit) = (0,0)

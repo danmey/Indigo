@@ -27,16 +27,16 @@ module GtkBackend = struct
   type gc = GDraw.pixmap
 
   let resources = Hashtbl.create 137
-
-  let draw_bitmap ~pos:(x,y) (gc:gc) (bitmap:bitmap) =
-    gc#put_pixbuf ~x ~y bitmap
-
-  let draw_text ~pos:(x,y) (gc:gc) text =
-    let col = `RGB (0, 0, 0) in
-    gc # set_foreground col;
-    gc # string ~x ~y ~font:(Lazy.force font) text;
-    ()
-
+  module Draw = struct
+    let bitmap ~pos:(x,y) (gc:gc) (bitmap:bitmap) =
+      gc#put_pixbuf ~x ~y bitmap
+        
+    let text ~pos:(x,y) (gc:gc) text =
+      let col = `RGB (0, 0, 0) in
+      gc # set_foreground col;
+      gc # string ~x ~y ~font:(Lazy.force font) text;
+      ()
+  end
   let bitmap_of_file ~fn = GdkPixbuf.from_file fn
 
   let size_of_bitmap bitmap =

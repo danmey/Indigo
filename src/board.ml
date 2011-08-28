@@ -19,8 +19,10 @@
 module type GRAPHICS_BACKEND = sig
   type bitmap
   type gc
-  val draw_bitmap : pos:(int * int) -> gc -> bitmap -> unit
-  val draw_text : pos:(int * int) -> gc -> string -> unit
+  module Draw : sig
+    val bitmap : pos:(int * int) -> gc -> bitmap -> unit
+    val text : pos:(int * int) -> gc -> string -> unit
+  end
   val bitmap_of_file : fn:string -> bitmap
   val size_of_bitmap : bitmap -> int*int
   val bitmap : string -> bitmap
@@ -48,6 +50,12 @@ module Make(G : GRAPHICS_BACKEND) = struct
                drag_x : int;
                drag_y : int }
 
+  module Board = struct
+
+    let draw canvas t =
+      G.Draw.bitmap canvas (G.bitmap t.graphics) ~pos:t.pos;
+      G.Draw.text canvas t.id ~pos:t.pos
+  end
   module Element = struct
     let rec is_in t ~x ~y =     
       let xt, yt = t.pos in
@@ -99,8 +107,8 @@ module Make(G : GRAPHICS_BACKEND) = struct
       }
 
     and draw canvas t =
-      G.draw_bitmap canvas (G.bitmap t.graphics) ~pos:t.pos;
-      G.draw_text canvas t.id ~pos:t.pos
+      G.Draw.bitmap canvas (G.bitmap t.graphics) ~pos:t.pos;
+      G.Draw.text canvas t.id ~pos:t.pos
         
 
     and print t =
