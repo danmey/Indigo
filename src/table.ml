@@ -20,45 +20,45 @@
 module Make(G : Board.GRAPHICS_BACKEND) = struct
   module Board = Board.Make(G)
   module Element = Board.Element
-  type t = { tiles : Element.t list; }
+  type t = { boards: Board.t list }
 
-  let rec create () = { tiles = [] }
+  let rec create () = { boards = [] }
   and add canvas tile =
-    { canvas with tiles = tile :: canvas.tiles; }
+    { canvas with boards = tile :: canvas.boards; }
 
   and draw canvas gc =
-    List.iter (Element.draw gc) canvas.tiles
+    List.iter (Element.draw gc) canvas.boards
 
   and button_pressed canvas ~x ~y =
-    { canvas with tiles = List.map (fun t -> Element.button_pressed t ~x ~y) canvas.tiles }
+    { canvas with boards = List.map (fun t -> Element.button_pressed t ~x ~y) canvas.boards }
 
   and button_released canvas ~x ~y =
-    { canvas with tiles = List.map (fun t -> Element.button_released t ~x ~y) canvas.tiles }
+    { canvas with boards = List.map (fun t -> Element.button_released t ~x ~y) canvas.boards }
 
   and motion canvas ~x ~y =
-    { canvas with tiles = List.map (fun t -> Element.motion t ~x ~y) canvas.tiles }
+    { canvas with boards = List.map (fun t -> Element.motion t ~x ~y) canvas.boards }
 
-  and print c = List.iter (fun t -> Element.print t; print_endline ""; flush stdout) c.tiles
+  and print c = List.iter (fun t -> Element.print t; print_endline ""; flush stdout) c.boards
     
-  and dragged canvas = List.exists Element.dragged canvas.tiles
+  and dragged canvas = List.exists Element.dragged canvas.boards
 
   and replace_item canvas id ~item =
     let rec loop = function
       | [] -> []
       | i :: xs ->
-        if id = i.Element.id then
+        if id = i.Board.id then
           item :: loop xs
         else
           i :: loop xs
     in
-    { canvas with tiles = loop canvas.tiles }
+    { canvas with boards = loop canvas.boards }
 
   and find_item canvas id =
-    List.find (fun t -> t.Element.id = id) canvas.tiles
+    List.find (fun t -> t.Board.id = id) canvas.boards
     
   and move_item canvas id ~x ~y =
     let item = find_item canvas id in
-    replace_item canvas id ~item:{item with Element.pos=(x,y) }
+    replace_item canvas id ~item:{item with Board.pos=(x,y) }
 
 end
 

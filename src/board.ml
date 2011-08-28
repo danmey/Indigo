@@ -35,19 +35,20 @@ module type NETWORK_BACKEND = sig
 end
 
 
-module Make(B : GRAPHICS_BACKEND) = struct
+module Make(G : GRAPHICS_BACKEND) = struct
+  type t  = 
+      { width : int;
+        height : int;
+        pos : (int * int);
+        drag: drag option;
+        id: string;
+        graphics: string
+      }
+  and drag = { dragged : bool;
+               drag_x : int;
+               drag_y : int }
+
   module Element = struct
-    type t  = { width : int;
-                height : int;
-                pos : (int * int);
-                drag: drag option;
-                graphics : string;
-                id: string; }
-
-    and drag = { dragged : bool;
-                 drag_x : int;
-                 drag_y : int }
-
     let rec is_in t ~x ~y =     
       let xt, yt = t.pos in
       x >= xt && x < xt + t.width && y >= yt && y < yt + t.height
@@ -85,10 +86,10 @@ module Make(B : GRAPHICS_BACKEND) = struct
   (* TODO: Move somewher else *)
     and dice ~x ~y id =
       let fn = "resources/images/g6-1.png" in
-      let bitmap = B.bitmap_of_file ~fn in
-      let width, height = B.size_of_bitmap bitmap in
+      let bitmap = G.bitmap_of_file ~fn in
+      let width, height = G.size_of_bitmap bitmap in
       let pos = x, y in
-      ignore(B.load_bitmap fn);
+      ignore(G.load_bitmap fn);
       { width = width;
         height = height;
         pos = pos;
@@ -98,8 +99,8 @@ module Make(B : GRAPHICS_BACKEND) = struct
       }
 
     and draw canvas t =
-      B.draw_bitmap canvas (B.bitmap t.graphics) ~pos:t.pos;
-      B.draw_text canvas t.id ~pos:t.pos
+      G.draw_bitmap canvas (G.bitmap t.graphics) ~pos:t.pos;
+      G.draw_text canvas t.id ~pos:t.pos
         
 
     and print t =
