@@ -227,8 +227,6 @@ and motion ({ board=t; elements} as b) ~x ~y =
         else b
       | None -> {b with elements = snd (drag_elements ()) }
     
-
-
 and print { board = e } =
   Printf.printf "Board: width: %d height: %d pos: (%d %d)" 
     e.width 

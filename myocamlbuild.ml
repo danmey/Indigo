@@ -29,14 +29,14 @@ struct
   let find_syntaxes () = ["camlp4o"; "camlp4r"]
 
   (* ocamlfind command *)
-  let ocamlfind x = S[A"ocamlfind"; x; A "config_file.cmo"]
+  let ocamlfind x = S[A"ocamlfind"; x; A "config_file.cmx"]
 
   let  before_options () =
     (* by using Before_options one let command line options have an higher priority *)
     (* on the contrary using After_options will guarantee to have the higher priority *)
 
     (* override default commands by ocamlfind ones *)
-    Options.ocamlc     := ocamlfind & A"ocamlc";
+    Options.ocamlc     := ocamlfind & A"ocamlopt";
     Options.ocamlopt   := ocamlfind & A"ocamlopt";
     Options.ocamldep   := ocamlfind & A"ocamldep";
     Options.ocamldoc   := ocamlfind & A"ocamldoc";
