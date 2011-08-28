@@ -46,33 +46,81 @@ module Make(G : GRAPHICS_BACKEND) = struct
         drag: drag option;
         id: string;
         graphics: string;
-        element: element
       }
   and drag = { dragged : bool;
                drag_x : int;
-               drag_y : int }
+               drag_y : int;
+               drag_type:drag_type }
   and element = 
-    | Board
-    | Dice
+    | Board of t * t list
+    | Element of t
+        
+  and drag_type = [ `Left | `Right | `Top | `Bottom | `Centre ]
 
-  let default_drag = { dragged = false; drag_x = 0; drag_y = 0 }
+  let default_drag = { drag_type=`Centre; dragged = false; drag_x = 0; drag_y = 0 }
+  module Default = struct
+
+    let rec drag drag_type t ~x ~y =
+      let drag = match t.drag with
+        | Some drag ->
+          let pos_x, pos_y = t.pos in
+          begin match drag_type with
+            | `Centre | `Left | `Top ->
+              let drag_x, drag_y = x - pos_x,  y - pos_y in
+              Some { drag_type; dragged = true; drag_x; drag_y }
+            | `Right | `Bottom ->
+              let drag_x, drag_y = x - (pos_x+t.width-10),  y - (pos_y+t.height-10) in
+              Some { drag_type; dragged = true; drag_x; drag_y } end
+        | None -> None  
+      in
+      { t with drag = drag }
+
+    and button_pressed t ~x ~y =
+      if is_in t ~x ~y then
+        drag `Centre t ~x ~ y
+      else t
+
+    and is_in t ~x ~y =     
+      let xt, yt = t.pos in
+      x >= xt && x < xt + t.width && y >= yt && y < yt + t.height
+  end
 
   module Board = struct
-    let draw canvas t =
-      G.Draw.rectangle canvas ~pos:t.pos ~size:(t.width, t.height)
+    let rec draw canvas t =
+      G.Draw.rectangle canvas ~pos:t.pos ~size:(t.width, t.height);
+      let x, y = t.pos in
+      let x, y = x + 10, y + 10 in
+      let width, height = t.width - 20, t.height - 20 in
+      let pos = x,y in
+      G.Draw.rectangle canvas ~pos:pos ~size:(width, height)
 
     and board ~x ~y id =
       let width = 200 in
       let height = 200 in
       let pos = x,y in
       let fn = "" in
-      { width = width;
+      Board ({ width = width;
         height = height;
         pos = pos;
         drag = Some default_drag;
         graphics = fn;
-        id;
-        element = Board }
+        id; }, [])
+    and edge t ~x ~y =
+      let tx, ty = t.pos in
+      if x > tx && x < tx + 10 then Some `Left else
+        if x > tx + t.width - 10 && x < tx + t.width then Some `Right else
+          if y > ty && y < ty + 10 then Some `Top else
+            if y > ty + t.height - 10 && y < ty + t.height then Some `Bottom else
+            None
+    and button_pressed t ~x ~y =
+      if Default.is_in t ~x ~y then
+        match edge t ~x ~y with
+          | None -> Default.button_pressed t ~x ~y
+          | Some `Left -> Default.drag `Left t ~x ~y
+          | Some `Right -> Default.drag `Right t ~x ~y
+          | Some `Top -> Default.drag `Top t ~x ~y
+          | Some `Bottom -> Default.drag `Bottom t ~x ~y
+      else t
   end
 
   module Element = struct
@@ -83,13 +131,12 @@ module Make(G : GRAPHICS_BACKEND) = struct
       let width, height = G.size_of_bitmap bitmap in
       let pos = x, y in
       ignore(G.load_bitmap fn);
-      { width = width;
+      Element { width = width;
         height = height;
         pos = pos;
         drag = Some default_drag;
         graphics = fn;
         id;
-        element = Dice
       }
 
     and draw canvas t =
@@ -97,49 +144,92 @@ module Make(G : GRAPHICS_BACKEND) = struct
       G.Draw.text canvas t.id ~pos:t.pos
 
   end
+    
+  let lift e f =
+    match e with
+      | Board (b,l) -> Board (f b, l)
+      | Element e -> Element (f e)
 
-    let rec is_in t ~x ~y =     
-      let xt, yt = t.pos in
-      x >= xt && x < xt + t.width && y >= yt && y < yt + t.height
+  let lift0 e f =
+    match e with
+      | Board (b,l) -> f b
+      | Element e -> f e
 
-    and button_pressed t ~x ~y =
-      if is_in t ~x ~y then
-        let drag = match t.drag with
-          | Some drag ->
-            let pos_x, pos_y = t.pos in
-            let drag_x, drag_y = x - pos_x,  y - pos_y in
-            Some { dragged = true; drag_x=drag_x; drag_y=drag_y }
-          | None -> None in
-        { t with drag = drag }
-      else t
-
-    and button_released t ~x ~y =
-      if is_in t ~x ~y then
-        let drag = match t.drag with
-          | Some drag ->
-            Some { drag with dragged = false; }
-          | None -> None in
-        { t with drag = drag }
-      else t
+  let rec button_released e ~x ~y = lift e (fun t ->
+    (* if Default.is_in t ~x ~y then *)
+      let drag = match t.drag with
+        | Some drag ->
+          Some { drag with dragged = false; }
+        | None -> None in
+      { t with drag = drag })
+    (* else t *)
         
-    and motion t ~x ~y = 
+  and limit t =
+    let x, y = t.pos in
+    let x = if x < 0 then 0 else x in
+    let y = if y < 0 then 0 else y in
+    let min = 4*10+5 in
+    let width = if t.width < min then min else t.width in
+    let height = if t.height < min then min else t.height in
+    { t with pos = (x,y); width; height }
+      
+  and motion t ~x ~y = lift t (fun t ->
       match t.drag with
         | Some d ->
           if d.dragged then
-            { t with pos = (x-d.drag_x, y-d.drag_y) }
+            limit (match d.drag_type with
+              | `Centre -> { t with pos = (x-d.drag_x, y-d.drag_y) }
+              | `Left -> 
+                let dx = x - d.drag_x - fst t.pos in
+                { t with pos = (x-d.drag_x, snd t.pos); width = t.width - dx }
+              | `Right -> 
+                let dx = x - fst t.pos in
+                { t with width = dx }
+              | `Top -> 
+                let dy = y - d.drag_y - snd t.pos in
+                { t with pos = (fst t.pos, y-d.drag_y); height = t.height - dy }
+              | `Bottom ->
+                let dy = y - snd t.pos in
+                { t with height = dy })
           else t
-        | None -> t
+        | None -> t)
 
-    and draw canvas t = 
-      match t.element with
-        | Board -> Board.draw canvas t
-        | Dice -> Element.draw canvas t
-    and print t =
-      Printf.printf "width: %d height: %d pos: (%d %d)" t.width t.height (fst t.pos) (snd t.pos)
-    and dragged t =
-      match t.drag with
-        | Some drag -> true
-        | None -> false 
+    and draw canvas = function
+      | Board (b,_) -> Board.draw canvas b
+      | Element e -> Element.draw canvas e
+        
+  and print = function
+    | Board (e, _) -> 
+      Printf.printf "Board: width: %d height: %d pos: (%d %d)" 
+        e.width 
+        e.height 
+        (fst e.pos) 
+        (snd e.pos)
+    | Element e ->
+      Printf.printf "Element: width: %d height: %d pos: (%d %d)" 
+            e.width 
+        e.height 
+        (fst e.pos) 
+        (snd e.pos)
+        
+  and dragged e = 
+    let e = match e with
+      | Board (e, _)
+      | Element e -> e 
+    in
+    match e.drag with
+      | Some drag -> true
+      | None -> false 
+        
+  and is_in ~x ~y = function
+    | Board (e, _)
+    | Element e -> Default.is_in ~x ~y e
+      
+  and button_pressed ~x ~y = function
+        | Board (b, lst) -> Board (Board.button_pressed b ~x ~y, lst)
+        | Element e -> Element (Default.button_pressed e ~x ~y)
+          
+  and id t = lift0 t (fun t -> t.id)
 
 end
 

@@ -20,14 +20,14 @@
 module Make(G : Board.GRAPHICS_BACKEND) = struct
   module Board = Board.Make(G)
   module Element = Board.Element
-  type t = { boards: Board.t list }
+  type t = { boards: Board.element list }
 
   let map_first_hit ~x ~y f t =
     let rec loop hit acc =
       function
         | [] -> hit, List.rev acc
         | el :: xs -> 
-          if hit = None && Board.is_in el ~x ~y then
+          if hit = None && Board.is_in ~x ~y el then
             loop (Some (f el)) acc xs
           else
             loop hit (el::acc) xs
@@ -40,13 +40,13 @@ module Make(G : Board.GRAPHICS_BACKEND) = struct
   let rec create () = { boards = [] }
 
   and add canvas tile =
-    { canvas with boards = tile :: canvas.boards; }
+    { boards = tile :: canvas.boards; }
 
   and draw canvas gc =
     List.iter (Board.draw gc) (List.rev canvas.boards)
 
   and button_pressed canvas ~x ~y =
-    map_first_hit ~x ~y (fun t -> Board.button_pressed t ~x ~y) canvas
+    map_first_hit ~x ~y (fun t -> Board.button_pressed ~x ~y t) canvas
 
   and button_released canvas ~x ~y =
     { canvas with boards = List.map (fun t -> Board.button_released t ~x ~y) canvas.boards }
@@ -62,7 +62,7 @@ module Make(G : Board.GRAPHICS_BACKEND) = struct
     let rec loop = function
       | [] -> []
       | i :: xs ->
-        if id = i.Board.id then
+        if id = Board.id i then
           item :: loop xs
         else
           i :: loop xs
@@ -70,11 +70,11 @@ module Make(G : Board.GRAPHICS_BACKEND) = struct
     { canvas with boards = loop canvas.boards }
 
   and find_item canvas id =
-    List.find (fun t -> t.Board.id = id) canvas.boards
+    List.find (fun t -> Board.id t = id) canvas.boards
     
-  and move_item canvas id ~x ~y =
-    let item = find_item canvas id in
-    replace_item canvas id ~item:{item with Board.pos=(x,y) }
+  (* and move_item canvas id ~x ~y = *)
+  (*   let item = find_item canvas id in *)
+  (*   replace_item canvas id ~item:{item with Board.pos=(x,y) } *)
 
 end
 
