@@ -102,6 +102,9 @@ let is_complete data =
 let set_auth uname pass data =
   {data with login = Some (FullLogin {uname; pass = Digest.to_hex (Digest.string pass)})}
 
+let set_auth_hash uname pass data =
+  {data with login = Some (FullLogin {uname; pass})}
+
 let print_pairs { host;
                   port;
                   login } =

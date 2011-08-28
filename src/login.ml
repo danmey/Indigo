@@ -151,8 +151,7 @@ and login_widget data =
   let select_text (w : GEdit.entry) =
     w#select_region 0 (w#text_length)
   in
-
-  pass_entry # set_visibility false;
+  let changed = ref false in
 
   let from_widgets data =
     if uname_entry # text = "" then
@@ -162,8 +161,10 @@ and login_widget data =
       begin err "Please specify password!"; None end
     else
       try
-        Some (LoginData.validate (LoginData.set_auth uname_entry # text pass_entry # text data))
-
+        Some (if !changed then
+          LoginData.validate (LoginData.set_auth uname_entry # text pass_entry # text data)
+        else
+          LoginData.validate (LoginData.set_auth_hash uname_entry # text pass_entry # text data))
       with LoginData.Parse_error str ->
         begin err str; None end in
 
@@ -187,6 +188,9 @@ and login_widget data =
           pass_entry # set_text pass;
           select_text pass_entry
       end;
+      pass_entry # connect # insert_text ~callback:(fun _ ~pos -> changed := true);
+      pass_entry # set_visibility false;
+
     )
     ~accept:(mOk, fun w -> 
       match from_widgets data with
@@ -199,7 +203,7 @@ let cmd_options data =
   let port = ref data.LoginData.port in
   let uname = ref None in
   let pass = ref None in
-  let force_ui = ref false in
+  let no_login_ui = ref false in
   let setopt opt uname = opt := Some (uname) in
   let nothing _ = () in
   let print_configuration () = LoginData.print_pairs data in
@@ -209,7 +213,7 @@ let cmd_options data =
      "--port", Arg.Set_int port, "Port number that sever listens on. E.g. '1234'";
      "--uname", Arg.String (setopt uname), "User name. E.g. 'wojtek'";
      "--pass", Arg.String (setopt pass), "Password.";
-     "--force_ui", Arg.Set force_ui, "Force UI even when command line is specified.";
+     "--no_login_ui", Arg.Set no_login_ui, "No login UI get configuration from command line and configuration.";
      "--print_configuration", Arg.Unit print_configuration, "Prints configuration as key-value pairs"] in
   let usage = 
       "INDIGO client\n" 
@@ -221,7 +225,7 @@ let cmd_options data =
   in
   Arg.parse spec nothing usage;
   let data = { data with LoginData.host = !host; LoginData.port = !port } in
-  !force_ui, match !uname, !pass with
+  !no_login_ui, match !uname, !pass with
     | None, None -> Some data
     | Some uname, None -> Some { data with LoginData.login = Some (LoginData.Uname uname) }
     | Some uname, Some pass -> Some (LoginData.set_auth uname pass data)
@@ -230,7 +234,7 @@ let cmd_options data =
 let create () =
   Config.with_profile (fun data' ->
     if Array.length Sys.argv > 1 then begin
-      let force_ui, data = cmd_options data' in
+      let no_login_ui, data = cmd_options data' in
       let data = match data with
         | (Some d) as data  -> begin
           try
@@ -241,7 +245,7 @@ let create () =
               data end
           with LoginData.Parse_error str -> print_endline str; None end
         | None -> None in
-      if force_ui then
+      if not no_login_ui then
         match data with
           | Some data -> server_widget data
           | None -> server_widget data'

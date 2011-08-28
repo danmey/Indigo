@@ -17,6 +17,8 @@
   --------------------------------------------------------------------------*)
 
 
+(* TODO: This whole code needs to be reworked! *)
+
 open Lwt
 open Lwt_unix
 open Lwt_chan
@@ -141,7 +143,6 @@ module Client = struct
       | Some(LoginData.FullLogin {LoginData.uname; LoginData.pass}) ->
         let rec loop2 () =
           lwt cmd = read_val_server in_ch in
-          print_endline "ha!";
           match cmd with
             | Some(C.Client (C.Login uname')) when uname = uname' ->
                 return (Authorised (fun (cmd : C.t) -> output_value out_ch cmd))
