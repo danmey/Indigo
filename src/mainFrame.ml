@@ -244,7 +244,12 @@ lwt () =
       | None -> return ()
       | Some login_data ->
         match_lwt Connection.Client.connect login_data with
-          | Connection.Client.BadLogin -> login_loop ()
+          | Connection.Client.BadPass ->
+            Login.err "Bad password. Please try again!";
+            login_loop ()
+          | Connection.Client.BadUname ->
+            Login.err "Bad password. Please try again!";
+            login_loop ()
           | Connection.Client.Authorised send ->
         ignore(area#event#connect#expose ~callback:(expose area backing));
         ignore(area#event#connect#configure ~callback:(configure window backing));
@@ -271,11 +276,10 @@ lwt () =
         area#drag#connect#drop ~callback:(drag_drop area backing view);
         let user_list, receive = UserList.create ~packing:tool_vbox#add ~canvas:area () in
         Listener.add_listener receive;
-        receive (Protocol.NewUser "ala");
         ignore(window#show ());
         
         update_display send area ();
-    
+        send (Protocol.Server (Protocol.RequestUserList));
     (* Main loop: *)
         waiter
     in
