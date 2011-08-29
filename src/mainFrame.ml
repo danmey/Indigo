@@ -250,38 +250,45 @@ lwt () =
           | Connection.Client.BadUname ->
             Login.err "Bad password. Please try again!";
             login_loop ()
-          | Connection.Client.Authorised send ->
-        ignore(area#event#connect#expose ~callback:(expose area backing));
-        ignore(area#event#connect#configure ~callback:(configure window backing));
-    
-    (* Event signals *)
-        ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
-        ignore(area#event#connect#button_press ~callback:(button_pressed send area backing));
-        ignore(area#event#connect#button_release ~callback:(button_release send area backing));
-        ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
-    
-        area#event#add [`EXPOSURE; 
-                        `LEAVE_NOTIFY; 
-                        `BUTTON_PRESS; 
-                        `BUTTON_RELEASE; 
-                        `POINTER_MOTION; 
-                        `POINTER_MOTION_HINT];
-        
-        let view = ObjectTree.create ~packing:tool_vbox#add ~canvas:area () in
+          | Connection.Client.Authorised (send, uname) ->
+            let quit _ = send (Protocol.Server (Protocol.Quit uname)) in
+            at_exit quit;
+            Sys.catch_break true;
+            (* Sys.set_signal Sys.sigkill (Sys.Signal_handle quit); *)
+            (* Sys.set_signal Sys.sigquit (Sys.Signal_handle quit); *)
+            (* Sys.set_signal Sys.sigint (Sys.Signal_handle quit); *)
 
-        let target_entry = { Gtk.target= "INTEGER"; Gtk.flags= []; Gtk.info=123 } in
-        view#drag#source_set ~modi:[`BUTTON1] ~actions:[`COPY] [target_entry];
-        area#drag#dest_set ~flags:[`HIGHLIGHT;`MOTION] ~actions:[`COPY] [target_entry];
-        area#drag#connect#data_received ~callback:drag_data_received;
-        area#drag#connect#drop ~callback:(drag_drop area backing view);
-        let user_list, receive = UserList.create ~packing:tool_vbox#add ~canvas:area () in
-        Listener.add_listener receive;
-        ignore(window#show ());
+            ignore(area#event#connect#expose ~callback:(expose area backing));
+            ignore(area#event#connect#configure ~callback:(configure window backing));
+            
+        (* Event signals *)
+            ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
+            ignore(area#event#connect#button_press ~callback:(button_pressed send area backing));
+            ignore(area#event#connect#button_release ~callback:(button_release send area backing));
+            ignore(area#event#connect#motion_notify ~callback:(motion_notify send area backing));
+            
+            area#event#add [`EXPOSURE; 
+                            `LEAVE_NOTIFY; 
+                            `BUTTON_PRESS; 
+                            `BUTTON_RELEASE; 
+                            `POINTER_MOTION; 
+                            `POINTER_MOTION_HINT];
+            
+            let view = ObjectTree.create ~packing:tool_vbox#add ~canvas:area () in
+            
+            let target_entry = { Gtk.target= "INTEGER"; Gtk.flags= []; Gtk.info=123 } in
+            view#drag#source_set ~modi:[`BUTTON1] ~actions:[`COPY] [target_entry];
+            area#drag#dest_set ~flags:[`HIGHLIGHT;`MOTION] ~actions:[`COPY] [target_entry];
+            area#drag#connect#data_received ~callback:drag_data_received;
+            area#drag#connect#drop ~callback:(drag_drop area backing view);
+            let user_list, receive = UserList.create ~packing:tool_vbox#add ~canvas:area () in
+            Listener.add_listener receive;
+            ignore(window#show ());
         
-        update_display send area ();
-        send (Protocol.Server (Protocol.RequestUserList));
-    (* Main loop: *)
-        waiter
+            update_display send area ();
+            send (Protocol.Server (Protocol.RequestUserList));
+        (* Main loop: *)
+            waiter
     in
     login_loop ()
 

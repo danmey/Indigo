@@ -93,7 +93,7 @@ module Server = struct
       new list_cp (tuple2_wrappers string_wrappers string_wrappers)
         ~group ["passwd"] ["admin", "admin"] "List of users password." 
     in
-    group # write config_file;
+    group # read config_file;
     auth_list_cp # get
       
 end

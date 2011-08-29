@@ -102,8 +102,8 @@ let err msg =
     ~message_type:`ERROR
     ~modal:true
     ~buttons:GWindow.Buttons.close () in
-  ignore(d # connect # response ~callback:(fun _ -> d # destroy()));
-  ignore(d # show())
+  ignore(d # run())
+
 
 let rec server_widget data =
   let message = "Server data" in

@@ -36,6 +36,7 @@ module Make(C : sig
     | Disconnect of string
     | RequestLogin of string * string
     | RequestUserList
+    | Quit of string
   type t =
     | Server of server_cmd
     | Client of client_cmd
@@ -43,13 +44,13 @@ module Make(C : sig
 (* include module type of Protocol *)
 end)(R : sig val receive : C.client_cmd -> unit end) = struct
 
-  let write out_ch (cmd : C.client_cmd) =
-    try_lwt
-      lwt () = output_value out_ch cmd in
-      flush out_ch
-    with 
-      | End_of_file -> return ()
-      | Unix.Unix_error (_,_,_) -> return ()
+  (* let write out_ch (cmd : C.client_cmd) = *)
+  (*   try_lwt *)
+  (*     lwt () = output_value out_ch cmd in *)
+  (*     flush out_ch *)
+  (*   with  *)
+  (*     | End_of_file -> return () *)
+  (*     | Unix.Unix_error (_,_,_) -> return () *)
 
   let read_val_client in_ch =
     try_lwt
@@ -81,22 +82,36 @@ module Server = struct
     let passwd = Config.Server.read () in
     let clients = ref [] in
     let users = ref [] in
+    let output_value fd value =
+      catch (fun () ->
+      match state fd with
+        | Opened ->
+          if writable fd then
+            let out_ch = out_channel_of_descr fd in
+            lwt () = output_value out_ch value in
+            flush out_ch
+          else return ()
+      | _ -> return ())
+        (function z -> return ())
+    in
     let read_clients () = 
       List.map
-        (fun (in_ch,out_channel , fd') ->
+        (fun fd ->
+          let in_ch = in_channel_of_descr fd in
           match_lwt read_val_server in_ch with
             | None -> return ()
             | Some cmd  ->
 
               let send_but cmd =
-                Lwt_list.iter_p (fun (in_ch, out_ch, fd) ->
+                Lwt_list.iter_p (fun fd' ->
                   return (if Lwt_unix.unix_file_descr fd <> Lwt_unix.unix_file_descr fd' then 
-                      Lwt.ignore_result (output_value out_ch cmd))
+                      Lwt.ignore_result (output_value fd' cmd))
                 ) !clients in
 
               let send_all cmd =
-                Lwt_list.iter_p (fun (in_ch, out_ch, fd) ->
-                  return (Lwt.ignore_result (output_value out_ch cmd))
+                Lwt_list.iter_p (fun fd' ->
+                  return (if Lwt_unix.unix_file_descr fd <> Lwt_unix.unix_file_descr fd' then 
+                      (Lwt.ignore_result (output_value fd' cmd)))
                 ) !clients in
 
               match cmd with
@@ -105,21 +120,32 @@ module Server = struct
                   match cmd with
                     | C.RequestLogin (uname, pass) ->
                       begin
-                      try
+                        catch (fun () ->
                         let pass' = Digest.to_hex (Digest.string (List.assoc uname passwd)) in
                         print_endline pass';
                         if pass = pass' then begin
                           users := uname :: !users;
-                          lwt () = output_value out_channel (C.Client (C.Login uname)) in
+                          lwt () = output_value fd (C.Client (C.Login uname)) in
                           send_all (C.Client (C.NewUser uname));
                           end
                         else
-                          return (Lwt.ignore_result (output_value out_channel (C.Client (C.BadPassword uname))))
-                       with Not_found -> 
-                          return (Lwt.ignore_result (output_value out_channel (C.Client (C.BadUser uname))))
+                          return (Lwt.ignore_result (output_value fd (C.Client (C.BadPassword uname)))))
+                        (function z -> close server_socket; fail z)
                       end
+
                     | C.RequestUserList ->
                       send_all (C.Client (C.UserList !users))
+
+                    | C.Quit uname -> 
+                      print_endline (uname ^ " Quit!");
+                      Pervasives.flush Pervasives.stdout;
+                      (* clients :=  *)
+                      (*   List.filter  *)
+                      (*   (fun a ->  *)
+                      (*     Lwt_unix.unix_file_descr a  *)
+                      (*     <> Lwt_unix.unix_file_descr fd) !clients; *)
+                      users := List.filter ((<>) uname) !users;
+                      return ()
                     | _ ->  return ()
                 ) !clients
     in
@@ -133,9 +159,7 @@ module Server = struct
 
           begin
             accept server_socket >>= fun (fd,_) ->
-            let out_ch = out_channel_of_descr fd in
-            let in_ch = in_channel_of_descr fd in
-            return (clients := ((in_ch, out_ch, fd) :: !clients))
+            return (clients := fd :: !clients)
           end;
 
         ] @ read_clients ())
@@ -147,8 +171,8 @@ end
 
 
 module Client = struct
-  type 'a result = 
-    | Authorised of 'a
+  type ('a, 'b) result = 
+    | Authorised of 'a * 'b
     | BadPass
     | BadUname
   let connect { LoginData.port; LoginData.host; LoginData.login } =
@@ -169,7 +193,7 @@ module Client = struct
           match cmd with
             | Some(C.Client (C.Login uname')) when uname = uname' ->
               loop();
-              return (Authorised (fun (cmd : C.t) -> Lwt.ignore_result(output_value out_ch cmd)))
+              return (Authorised ((fun (cmd : C.t) -> Lwt.ignore_result(output_value out_ch cmd)), uname))
             | Some(C.Client (C.BadPassword uname')) when uname = uname' ->
                 return BadPass
             | Some(C.Client (C.BadUser uname')) when uname = uname' ->
