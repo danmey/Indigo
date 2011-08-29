@@ -6,3 +6,4 @@
 <connection.*>: pkg_sexplib, pkg_lwt.glib, pkg_lablgtk2, pkg_lwt.glib
 <login.*>:  pkg_pcre, pkg_sexplib, pkg_lwt.glib, pkg_lablgtk2, pkg_lwt.glib
 <loginData.*>:  pkg_pcre, pkg_sexplib, pkg_lwt.glib, pkg_lablgtk2, pkg_lwt.glib
+<userList.*>: pkg_lwt.glib, pkg_lablgtk2, pkg_lwt.glib

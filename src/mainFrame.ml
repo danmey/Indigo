@@ -85,13 +85,13 @@ let set_table c =
     (fun () ->
       return (ignore(the_table := c))))
 
- module Connection = Connection.Make(Protocol)(struct 
-   let receive = function
-     (* | Protocol.State c ->  *)
-     (*  set_table c *)
-     | _ -> () 
+module Listener = struct
+  let listeners = ref []
+  let add_listener f = listeners := f :: !listeners
+  let receive x = List.iter (fun f -> f x) !listeners
 end
-)
+
+module Connection = Connection.Make(Protocol)(Listener)
     
 (* Create a new backing pixmap of the appropriate size *)
 let configure window backing ev =
@@ -263,12 +263,15 @@ lwt () =
                         `POINTER_MOTION_HINT];
         
         let view = ObjectTree.create ~packing:tool_vbox#add ~canvas:area () in
+
         let target_entry = { Gtk.target= "INTEGER"; Gtk.flags= []; Gtk.info=123 } in
         view#drag#source_set ~modi:[`BUTTON1] ~actions:[`COPY] [target_entry];
         area#drag#dest_set ~flags:[`HIGHLIGHT;`MOTION] ~actions:[`COPY] [target_entry];
         area#drag#connect#data_received ~callback:drag_data_received;
         area#drag#connect#drop ~callback:(drag_drop area backing view);
-        let quit_button = GButton.button ~label:"Quit" ~packing:tool_vbox#add () in
+        let user_list, receive = UserList.create ~packing:tool_vbox#add ~canvas:area () in
+        Listener.add_listener receive;
+        receive (Protocol.NewUser "ala");
         ignore(window#show ());
         
         update_display send area ();
