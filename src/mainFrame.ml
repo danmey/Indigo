@@ -239,25 +239,6 @@ let create () =
 
   (* Create the drawing area *)
     let area = GMisc.drawing_area ~width ~height ~packing:main_paned#add () in
-    let rec login_loop () =
-    let login_data = Login.create () in
-    match login_data with
-      | None -> return ()
-      | Some login_data ->
-        match_lwt Connection.Client.connect login_data with
-          | Connection.Client.BadPass ->
-            Login.err "Bad password. Please try again!";
-            login_loop ()
-          | Connection.Client.BadUname ->
-            Login.err "Bad password. Please try again!";
-            login_loop ()
-          | Connection.Client.Authorised (send, uname) ->
-            let quit _ = send (Protocol.Server (Protocol.Quit uname)) in
-            at_exit quit;
-            Sys.catch_break true;
-            (* Sys.set_signal Sys.sigkill (Sys.Signal_handle quit); *)
-            (* Sys.set_signal Sys.sigquit (Sys.Signal_handle quit); *)
-            (* Sys.set_signal Sys.sigint (Sys.Signal_handle quit); *)
 
             ignore(area#event#connect#expose ~callback:(expose area backing));
             ignore(area#event#connect#configure ~callback:(configure window backing));
@@ -283,6 +264,29 @@ let create () =
             area#drag#connect#data_received ~callback:drag_data_received;
             area#drag#connect#drop ~callback:(drag_drop area backing view);
             let user_list, receive = UserList.create ~packing:tool_vbox#add ~canvas:area () in
+
+    let rec login_loop () =
+    let login_data = Login.create () in
+    match login_data with
+      | None -> return ()
+      | Some login_data ->
+        match_lwt Connection.Client.connect login_data login_loop with
+          | Connection.Client.BadPass ->
+            Login.err "Bad password. Please try again!";
+            login_loop ()
+          | Connection.Client.BadUname ->
+            Login.err "Bad password. Please try again!";
+            login_loop ()
+          | Connection.Client.UserAlreadyLoggedIn ->
+            Login.err "User alread logged in. Please try again!";
+            login_loop ()
+          | Connection.Client.Authorised (send, uname) ->
+            let quit _ = send (Protocol.Server (Protocol.Quit uname)) in
+            at_exit quit;
+            Sys.catch_break true;
+            (* Sys.set_signal Sys.sigkill (Sys.Signal_handle quit); *)
+            (* Sys.set_signal Sys.sigquit (Sys.Signal_handle quit); *)
+            (* Sys.set_signal Sys.sigint (Sys.Signal_handle quit); *)
             Listener.add_listener receive;
             ignore(window#show ());
         

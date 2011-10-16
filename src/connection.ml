@@ -32,6 +32,7 @@ module Make(C : sig
     | BadUser of string
     | UserList of string list
     | NewUser of string
+    | UserAlreadyLoggedIn of string
   type server_cmd =
     | Disconnect of string
     | RequestLogin of string * string
@@ -43,14 +44,6 @@ module Make(C : sig
 
 (* include module type of Protocol *)
 end)(R : sig val receive : C.client_cmd -> unit end) = struct
-
-  (* let write out_ch (cmd : C.client_cmd) = *)
-  (*   try_lwt *)
-  (*     lwt () = output_value out_ch cmd in *)
-  (*     flush out_ch *)
-  (*   with  *)
-  (*     | End_of_file -> return () *)
-  (*     | Unix.Unix_error (_,_,_) -> return () *)
 
   let read_val_client in_ch =
     try_lwt
@@ -74,6 +67,7 @@ module Server = struct
 
   let rec start port =
     Sys.set_signal Sys.sigpipe Sys.Signal_ignore;
+    Sys.catch_break true;
     lwt host_name = gethostname () in
     lwt entry = gethostbyname host_name in
     let host = entry.h_addr_list.(0) in
@@ -81,6 +75,9 @@ module Server = struct
     let server_socket = socket PF_INET SOCK_STREAM 0 in
     let passwd = Config.Server.read () in
     let clients = ref [] in
+    at_exit (fun () -> 
+      List.iter (fun fd -> Lwt.ignore_result (close fd); print_endline "quit!"; ()) !clients; close server_socket;());
+
     let users = ref [] in
     let output_value fd value =
       catch (fun () ->
@@ -121,16 +118,19 @@ module Server = struct
                     | C.RequestLogin (uname, pass) ->
                       begin
                         catch (fun () ->
-                        let pass' = Digest.to_hex (Digest.string (List.assoc uname passwd)) in
-                        print_endline pass';
-                        if pass = pass' then begin
-                          users := uname :: !users;
-                          lwt () = output_value fd (C.Client (C.Login uname)) in
-                          send_all (C.Client (C.NewUser uname));
-                          end
-                        else
-                          return (Lwt.ignore_result (output_value fd (C.Client (C.BadPassword uname)))))
-                        (function z -> close server_socket; fail z)
+                            if List.mem uname !users then
+                              return (Lwt.ignore_result (output_value fd (C.Client (C.UserAlreadyLoggedIn uname))))
+                            else
+                              let pass' = Digest.to_hex (Digest.string (List.assoc uname passwd)) in
+                              print_endline pass';
+                              if pass = pass' then 
+                              begin
+                                users := uname :: !users;
+                                lwt () = output_value fd (C.Client (C.Login uname)) in
+                                send_all (C.Client (C.NewUser uname));
+                              end
+                              else return (Lwt.ignore_result (output_value fd (C.Client (C.BadPassword uname)))))
+                          (function z -> close server_socket; fail z)
                       end
 
                     | C.RequestUserList ->
@@ -164,8 +164,8 @@ module Server = struct
 
         ] @ read_clients ())
       done)
-      (function 
-        | z -> close server_socket; fail z)
+      (function
+        | z -> List.iter (fun fd -> Lwt.ignore_result (close fd); print_endline "quit!"; ()) !clients; close server_socket; fail z)
 
 end
 
@@ -175,16 +175,16 @@ module Client = struct
     | Authorised of 'a * 'b
     | BadPass
     | BadUname
-  let connect { LoginData.port; LoginData.host; LoginData.login } =
+    | UserAlreadyLoggedIn
+  let connect { LoginData.port; LoginData.host; LoginData.login } disconnect =
      lwt entry = gethostbyname host in
      let host = entry.h_addr_list.(0) in
      let addr = ADDR_INET (host, port) in
      lwt in_ch, out_ch = open_connection addr in
      let rec loop () =
-       print_endline "cmd!";
        match_lwt read_val_server in_ch with 
          | Some (C.Client cmd) -> R.receive cmd; loop ()
-         | _ -> loop ()
+         | _ -> disconnect ()
     in
     match login with
       | Some(LoginData.FullLogin {LoginData.uname; LoginData.pass}) ->
@@ -198,6 +198,8 @@ module Client = struct
                 return BadPass
             | Some(C.Client (C.BadUser uname')) when uname = uname' ->
                 return BadUname
+            | Some(C.Client (C.UserAlreadyLoggedIn uname')) ->
+                return UserAlreadyLoggedIn
             | _ ->  loop2 () in
             lwt () = output_value out_ch (C.Server (C.RequestLogin (uname, pass))) in
             lwt a = loop2 () in

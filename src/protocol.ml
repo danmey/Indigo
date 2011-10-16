@@ -5,6 +5,7 @@
     | BadUser of string
     | UserList of string list
     | NewUser of string
+    | UserAlreadyLoggedIn of string
   type server_cmd =
     | Disconnect of string
     | RequestLogin of string * string
