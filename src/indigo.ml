@@ -16,5 +16,5 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
   --------------------------------------------------------------------------*)
 
-let _ = 
-MainFrame.create ()
+lwt () = 
+    MainFrame.create ()
