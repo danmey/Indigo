@@ -215,7 +215,8 @@ let rec update_display send (area:GMisc.drawing_area) () =
   area#misc#draw (Some update_rect);
   Lwt.bind (Lwt_unix.sleep 0.01) (update_display send area)
 
-lwt () =
+let create () =
+  lwt a =
     ignore (GMain.init ());
 
     Lwt_glib.install  (); 
@@ -291,5 +292,7 @@ lwt () =
             waiter
     in
     login_loop ()
+  in
+  return a
 
  

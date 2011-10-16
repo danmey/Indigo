@@ -1,9 +1,0 @@
-<*>: pkg_cairo, pkg_pcre, syntax_camlp4o, pkg_lwt, pkg_lwt.unix, pkg_lwt.syntax, pkg_lwt.syntax.log
-<canvas.*>: pkg_lwt.glib, pkg_lablgtk2, pkg_lwt.glib
-<mainFrame.*>: pkg_pcre, pkg_lwt.glib, pkg_lablgtk2, pkg_lwt.glib
-<objectTree.*>: pkg_lwt.glib, pkg_lablgtk2, pkg_lwt.glib
-<tile.*>: pkg_lwt.glib, pkg_lablgtk2, pkg_lwt.glib
-<connection.*>: pkg_sexplib, pkg_lwt.glib, pkg_lablgtk2, pkg_lwt.glib
-<login.*>:  pkg_pcre, pkg_sexplib, pkg_lwt.glib, pkg_lablgtk2, pkg_lwt.glib
-<loginData.*>:  pkg_pcre, pkg_sexplib, pkg_lwt.glib, pkg_lablgtk2, pkg_lwt.glib
-<userList.*>: pkg_lwt.glib, pkg_lablgtk2, pkg_lwt.glib
