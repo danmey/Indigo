@@ -265,21 +265,22 @@ let create () =
             area#drag#connect#drop ~callback:(drag_drop area backing view);
             let user_list, receive = UserList.create ~packing:tool_vbox#add ~canvas:area () in
 
-    let rec login_loop () =
+    let rec login_loop kick () =
     let login_data = Login.create () in
     match login_data with
       | None -> return ()
       | Some login_data ->
-        match_lwt Connection.Client.connect login_data login_loop with
+        match_lwt Connection.Client.connect ~kick login_data (login_loop false) with
           | Connection.Client.BadPass ->
             Login.err "Bad password. Please try again!";
-            login_loop ()
+            login_loop false ()
           | Connection.Client.BadUname ->
             Login.err "Bad password. Please try again!";
-            login_loop ()
-          | Connection.Client.UserAlreadyLoggedIn ->
-            Login.err "User alread logged in. Please try again!";
-            login_loop ()
+            login_loop false ()
+          | Connection.Client.UserAlreadyLoggedIn name ->
+            begin match Login.confirm "User already logged in. Should I kick it out?" with
+              | `OK -> login_loop true ()
+              | _ -> login_loop false () end
           | Connection.Client.Authorised (send, uname) ->
             let quit _ = send (Protocol.Server (Protocol.Quit uname)) in
             at_exit quit;
@@ -295,7 +296,7 @@ let create () =
         (* Main loop: *)
             waiter
     in
-    login_loop ()
+    login_loop false ()
   in
   return a
 

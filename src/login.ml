@@ -104,6 +104,12 @@ let err msg =
     ~buttons:GWindow.Buttons.close () in
   ignore(d # run())
 
+let confirm msg =
+  let d = GWindow.message_dialog ~message:msg
+    ~message_type:`ERROR
+    ~modal:true
+    ~buttons:GWindow.Buttons.ok_cancel () in
+  d # run()
 
 let rec server_widget data =
   let message = "Server data" in

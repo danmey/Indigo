@@ -17,8 +17,6 @@
   --------------------------------------------------------------------------*)
 
 
-(* TODO: This whole code needs to be reworked! *)
-
 open Lwt
 open Lwt_unix
 open Lwt_chan
@@ -38,6 +36,7 @@ module Make(C : sig
     | RequestLogin of string * string
     | RequestUserList
     | Quit of string
+    | Kick of string
   type t =
     | Server of server_cmd
     | Client of client_cmd
@@ -138,8 +137,9 @@ module Server = struct
                   | {name=Some name} ->  name :: lst
                   | _ -> lst) [] clients in
               send_all (C.Client (C.UserList lst))
-  
-            | C.Quit uname ->
+
+            | C.Quit uname
+            | C.Kick uname ->
               remove_client uname end
                 
       in
@@ -168,8 +168,8 @@ module Client = struct
     | Authorised of 'a * 'b
     | BadPass
     | BadUname
-    | UserAlreadyLoggedIn
-  let connect { LoginData.port; LoginData.host; LoginData.login } disconnect =
+    | UserAlreadyLoggedIn of string
+  let connect ?(kick=false) { LoginData.port; LoginData.host; LoginData.login } disconnect =
      lwt entry = gethostbyname host in
      let host = entry.h_addr_list.(0) in
      let addr = ADDR_INET (host, port) in
@@ -192,10 +192,11 @@ module Client = struct
             | Some(C.Client (C.BadUser uname')) when uname = uname' ->
                 return BadUname
             | Some(C.Client (C.UserAlreadyLoggedIn uname')) ->
-                return UserAlreadyLoggedIn
+                return (UserAlreadyLoggedIn uname')
             | _ ->  loop2 () in
-            lwt () = output_value out_ch (C.Server (C.RequestLogin (uname, pass))) in
-            lwt a = loop2 () in
+              lwt () = if kick then output_value out_ch (C.Server (C.Kick (uname))) else return () in
+              lwt () = output_value out_ch (C.Server (C.RequestLogin (uname, pass))) in
+              lwt a = loop2 () in
             return a
 end
 end

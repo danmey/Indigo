@@ -11,6 +11,7 @@
     | RequestLogin of string * string
     | RequestUserList
     | Quit of string
+    | Kick of string
   type t =
     | Server of server_cmd
     | Client of client_cmd
