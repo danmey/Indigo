@@ -62,6 +62,11 @@ end)(R : sig val receive : C.client_cmd -> unit end) = struct
 
 module Server = struct
 
+  type client = {
+    mutable name: string option;
+    in_ch: Lwt_io.input_channel;
+    out_ch: Lwt_io.output_channel }
+
   let rec restart_on_EINTR f x = 
     try f x with Unix.Unix_error (Unix.EINTR, _, _) -> restart_on_EINTR f x
 
@@ -72,101 +77,77 @@ module Server = struct
     lwt entry = gethostbyname host_name in
     let host = entry.h_addr_list.(0) in
     let addr = ADDR_INET (host, port) in
-    let server_socket = socket PF_INET SOCK_STREAM 0 in
+    let clients = Queue.create () in
     let passwd = Config.Server.read () in
-    let clients = ref [] in
-    at_exit (fun () -> 
-      List.iter (fun fd -> Lwt.ignore_result (close fd); print_endline "quit!"; ()) !clients; close server_socket;());
 
-    let users = ref [] in
-    let output_value fd value =
-      catch (fun () ->
-      match state fd with
-        | Opened ->
-          if writable fd then
-            let out_ch = out_channel_of_descr fd in
-            lwt () = output_value out_ch value in
-            flush out_ch
-          else return ()
-      | _ -> return ())
-        (function z -> return ())
-    in
-    let read_clients () = 
-      List.map
-        (fun fd ->
-          let in_ch = in_channel_of_descr fd in
-          match_lwt read_val_server in_ch with
-            | None -> return ()
-            | Some cmd  ->
+    let send_all cmd =
+      return (Queue.iter 
+        (fun {out_ch} -> 
+          Lwt.ignore_result(output_value out_ch cmd))
+        clients) in
 
-              let send_but cmd =
-                Lwt_list.iter_p (fun fd' ->
-                  return (if Lwt_unix.unix_file_descr fd <> Lwt_unix.unix_file_descr fd' then 
-                      Lwt.ignore_result (output_value fd' cmd))
-                ) !clients in
+    (* let send_others name cmd = *)
+    (*   return (Queue.iter  *)
+    (*     (fun (name',(_,out_ch)) ->  *)
+    (*       if name <> name' then *)
+    (*         Lwt.ignore_result(output_value out_ch cmd)) *)
+    (*     clients) in *)
 
-              let send_all cmd =
-                Lwt_list.iter_p (fun fd' ->
-                  return (if Lwt_unix.unix_file_descr fd <> Lwt_unix.unix_file_descr fd' then 
-                      (Lwt.ignore_result (output_value fd' cmd)))
-                ) !clients in
+    let receive ({ name; in_ch; out_ch } as client) =
+      lwt cmd = input_value in_ch in
+      begin match cmd with 
+        | C.Client _ as cmd  -> return (send_all cmd)
+        | C.Server cmd ->
+          return begin match cmd with
+            | C.RequestLogin (uname, pass) ->
+              let module M = Map.Make (struct type t = string let compare = String.compare end) in
+              let set = Queue.fold 
+                (fun set ->
+                  function 
+                    | {name=Some name} as el -> 
+                      M.add name el set 
+                    | _ -> set) M.empty clients in
+              begin
+              try_lwt
+                let _ = M.find uname set in
+                output_value out_ch (C.Client (C.UserAlreadyLoggedIn uname))
+              with Not_found ->
+                let pass' = Digest.to_hex (Digest.string (List.assoc uname passwd)) in
+                if pass = pass' 
+                then lwt () =
+                    client.name <- Some uname;
+                    output_value out_ch (C.Client (C.Login uname)) in
+                    send_all (C.Client (C.NewUser uname))
+                else output_value out_ch (C.Client (C.BadPassword uname))
+              end
 
-              match cmd with
-                | C.Client cmd -> send_all (C.Client cmd)
-                | C.Server cmd ->
-                  match cmd with
-                    | C.RequestLogin (uname, pass) ->
-                      begin
-                        catch (fun () ->
-                            if List.mem uname !users then
-                              return (Lwt.ignore_result (output_value fd (C.Client (C.UserAlreadyLoggedIn uname))))
-                            else
-                              let pass' = Digest.to_hex (Digest.string (List.assoc uname passwd)) in
-                              print_endline pass';
-                              if pass = pass' then 
-                              begin
-                                users := uname :: !users;
-                                lwt () = output_value fd (C.Client (C.Login uname)) in
-                                send_all (C.Client (C.NewUser uname));
-                              end
-                              else return (Lwt.ignore_result (output_value fd (C.Client (C.BadPassword uname)))))
-                          (function z -> close server_socket; fail z)
-                      end
-
-                    | C.RequestUserList ->
-                      send_all (C.Client (C.UserList !users))
-
-                    | C.Quit uname -> 
-                      print_endline (uname ^ " Quit!");
-                      Pervasives.flush Pervasives.stdout;
-                      (* clients :=  *)
-                      (*   List.filter  *)
-                      (*   (fun a ->  *)
-                      (*     Lwt_unix.unix_file_descr a  *)
-                      (*     <> Lwt_unix.unix_file_descr fd) !clients; *)
-                      users := List.filter ((<>) uname) !users;
-                      return ()
-                    | _ ->  return ()
-                ) !clients
-    in
-
-    catch (fun () ->
-      bind server_socket addr;
-      listen server_socket 10;
-      while_lwt true do
-        Lwt_unix.sleep 0.01 >>= fun () ->
-        choose ([
-
-          begin
-            accept server_socket >>= fun (fd,_) ->
-            return (clients := fd :: !clients)
-          end;
-
-        ] @ read_clients ())
-      done)
-      (function
-        | z -> List.iter (fun fd -> Lwt.ignore_result (close fd); print_endline "quit!"; ()) !clients; close server_socket; fail z)
-
+            | C.RequestUserList ->
+              let lst = Queue.fold 
+                (fun lst -> function
+                  | {name=Some name} ->  name :: lst
+                  | _ -> lst) [] clients in
+              send_all (C.Client (C.UserList lst))
+  
+            | C.Quit uname ->
+              let clients' = Queue.copy clients in
+              Queue.clear clients;
+              return begin Queue.iter 
+                (function 
+                  | {name=Some name} as client -> 
+                    begin if uname <> name 
+                    then Queue.add client clients end
+                  | _ -> Queue.add client clients 
+                ) clients' end end
+                
+      end
+  	    in
+    let add_client (in_ch,out_ch) = Queue.add {name=None; in_ch; out_ch} clients in
+    
+    let server = Lwt_io.establish_server addr add_client in
+    
+    at_exit (fun () -> Lwt_io.shutdown_server server);
+    let receive client = Lwt.ignore_result (receive client) in
+    while_lwt true do Lwt_unix.sleep 0.01 >> return (Queue.iter receive clients) done
 end
 
 
