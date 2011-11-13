@@ -270,7 +270,7 @@ let create () =
     match login_data with
       | None -> return ()
       | Some login_data ->
-        match_lwt Connection.Client.connect ~kick login_data (login_loop false) with
+        match_lwt Connection.Client.connect ~kick login_data (fun () -> return (window # destroy ())) with
           | Connection.Client.BadPass ->
             Login.err "Bad password. Please try again!";
             login_loop false ()

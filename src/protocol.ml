@@ -6,6 +6,7 @@
     | UserList of string list
     | NewUser of string
     | UserAlreadyLoggedIn of string
+    | KickUser of string
   type server_cmd =
     | Disconnect of string
     | RequestLogin of string * string

@@ -31,6 +31,7 @@ module Make(C : sig
     | UserList of string list
     | NewUser of string
     | UserAlreadyLoggedIn of string
+    | KickUser of string
   type server_cmd =
     | Disconnect of string
     | RequestLogin of string * string
@@ -102,6 +103,20 @@ module Server = struct
             | client -> Queue.add client clients 
           ) clients' end
     in
+
+    let kick_client uname =
+      let clients' = Queue.copy clients in
+      Queue.clear clients;
+      begin Queue.iter 
+          (function 
+            | {out_ch;name=Some name} as client -> 
+              begin if uname = name then
+                  Lwt.ignore_result (output_value out_ch (C.Client (C.KickUser uname))) end
+            | client -> Queue.add client clients 
+          ) clients' end;
+      remove_client uname
+    in
+
     let receive ({ name; in_ch; out_ch } as client) =
       try_lwt
       lwt cmd = input_value in_ch in
@@ -138,9 +153,9 @@ module Server = struct
                   | _ -> lst) [] clients in
               send_all (C.Client (C.UserList lst))
 
-            | C.Quit uname
-            | C.Kick uname ->
-              remove_client uname end
+            | C.Quit uname -> remove_client uname
+            | C.Kick uname -> kick_client uname
+      end
                 
       in
       return None
@@ -169,6 +184,7 @@ module Client = struct
     | BadPass
     | BadUname
     | UserAlreadyLoggedIn of string
+    | Kick of string
   let connect ?(kick=false) { LoginData.port; LoginData.host; LoginData.login } disconnect =
      lwt entry = gethostbyname host in
      let host = entry.h_addr_list.(0) in
@@ -176,6 +192,7 @@ module Client = struct
      lwt in_ch, out_ch = open_connection addr in
      let rec loop () =
        match_lwt read_val_server in_ch with 
+         | Some (C.Client (C.KickUser name)) -> print_endline "Kick"; Pervasives.flush Pervasives.stdout; disconnect ()
          | Some (C.Client cmd) -> R.receive cmd; loop ()
          | _ -> disconnect ()
     in
