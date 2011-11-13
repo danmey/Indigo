@@ -92,13 +92,24 @@ module Server = struct
     (*       if name <> name' then *)
     (*         Lwt.ignore_result(output_value out_ch cmd)) *)
     (*     clients) in *)
-
+    let remove_client uname =
+      let clients' = Queue.copy clients in
+      Queue.clear clients;
+      return begin Queue.iter 
+          (function 
+            | {name=Some name} as client -> 
+              begin if uname <> name 
+                then Queue.add client clients end
+            | client -> Queue.add client clients 
+          ) clients' end
+    in
     let receive ({ name; in_ch; out_ch } as client) =
+      try_lwt
       lwt cmd = input_value in_ch in
-      begin match cmd with 
-        | C.Client _ as cmd  -> return (send_all cmd)
+      lwt () = match cmd with 
+        | C.Client _ as cmd  -> send_all cmd
         | C.Server cmd ->
-          return begin match cmd with
+          begin match cmd with
             | C.RequestLogin (uname, pass) ->
               let module M = Map.Make (struct type t = string let compare = String.compare end) in
               let set = Queue.fold 
@@ -129,25 +140,26 @@ module Server = struct
               send_all (C.Client (C.UserList lst))
   
             | C.Quit uname ->
-              let clients' = Queue.copy clients in
-              Queue.clear clients;
-              return begin Queue.iter 
-                (function 
-                  | {name=Some name} as client -> 
-                    begin if uname <> name 
-                    then Queue.add client clients end
-                  | _ -> Queue.add client clients 
-                ) clients' end end
+              remove_client uname end
                 
-      end
-  	    in
+      in
+      return None
+      with End_of_file -> return name
+    in
     let add_client (in_ch,out_ch) = Queue.add {name=None; in_ch; out_ch} clients in
     
     let server = Lwt_io.establish_server addr add_client in
     
     at_exit (fun () -> Lwt_io.shutdown_server server);
-    let receive client = Lwt.ignore_result (receive client) in
-    while_lwt true do Lwt_unix.sleep 0.01 >> return (Queue.iter receive clients) done
+    while_lwt true do 
+    lwt () = Lwt_unix.sleep 0.01 in 
+    return (Queue.iter
+              begin fun client ->
+              Lwt.ignore_result begin match_lwt receive client with
+                | Some name -> remove_client name
+                | None -> return () end end
+              clients) done
+
 end
 
 
