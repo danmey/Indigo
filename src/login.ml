@@ -102,6 +102,7 @@ let err msg =
     ~message_type:`ERROR
     ~modal:true
     ~buttons:GWindow.Buttons.close () in
+
   ignore(d # run())
 
 let confirm msg =
@@ -109,7 +110,9 @@ let confirm msg =
     ~message_type:`ERROR
     ~modal:true
     ~buttons:GWindow.Buttons.ok_cancel () in
-  d # run()
+  let i = d # run() in
+  d # destroy ();
+  i
 
 let rec server_widget data =
   let message = "Server data" in

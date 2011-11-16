@@ -265,38 +265,33 @@ let create () =
             area#drag#connect#drop ~callback:(drag_drop area backing view);
             let user_list, receive = UserList.create ~packing:tool_vbox#add ~canvas:area () in
 
-    let rec login_loop kick () =
-    let login_data = Login.create () in
-    match login_data with
+    let rec login_loop kick login_data () =
+    (match login_data with
       | None -> return ()
       | Some login_data ->
         match_lwt Connection.Client.connect ~kick login_data (fun () -> return (window # destroy ())) with
           | Connection.Client.BadPass ->
-            Login.err "Bad password. Please try again!";
-            login_loop false ()
+            return (Login.err "Bad password. Please try again!")
           | Connection.Client.BadUname ->
-            Login.err "Bad password. Please try again!";
-            login_loop false ()
+            return (Login.err "Bad password. Please try again!")
           | Connection.Client.UserAlreadyLoggedIn name ->
             begin match Login.confirm "User already logged in. Should I kick it out?" with
-              | `OK -> login_loop true ()
-              | _ -> login_loop false () end
+              | `OK -> login_loop true (Some login_data) ()
+              | _ -> return () end
           | Connection.Client.Authorised (send, uname) ->
             let quit _ = send (Protocol.Server (Protocol.Quit uname)) in
             at_exit quit;
             Sys.catch_break true;
-            (* Sys.set_signal Sys.sigkill (Sys.Signal_handle quit); *)
-            (* Sys.set_signal Sys.sigquit (Sys.Signal_handle quit); *)
-            (* Sys.set_signal Sys.sigint (Sys.Signal_handle quit); *)
             Listener.add_listener receive;
             ignore(window#show ());
         
             update_display send area ();
             send (Protocol.Server (Protocol.RequestUserList));
         (* Main loop: *)
-            waiter
+            waiter)
     in
-    login_loop false ()
+    let login_data = Login.create () in
+    login_loop false login_data ()
   in
   return a
 

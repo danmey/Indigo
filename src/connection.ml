@@ -192,7 +192,7 @@ module Client = struct
      lwt in_ch, out_ch = open_connection addr in
      let rec loop () =
        match_lwt read_val_server in_ch with 
-         | Some (C.Client (C.KickUser name)) -> print_endline "Kick"; Pervasives.flush Pervasives.stdout; disconnect ()
+         | Some (C.Client (C.KickUser name)) -> disconnect ()
          | Some (C.Client cmd) -> R.receive cmd; loop ()
          | _ -> disconnect ()
     in
@@ -211,9 +211,11 @@ module Client = struct
             | Some(C.Client (C.UserAlreadyLoggedIn uname')) ->
                 return (UserAlreadyLoggedIn uname')
             | _ ->  loop2 () in
-              lwt () = if kick then output_value out_ch (C.Server (C.Kick (uname))) else return () in
-              lwt () = output_value out_ch (C.Server (C.RequestLogin (uname, pass))) in
-              lwt a = loop2 () in
-            return a
+                lwt () = 
+                if kick 
+                then output_value out_ch (C.Server (C.Kick (uname)))
+                else return () in
+                lwt () = output_value out_ch (C.Server (C.RequestLogin (uname, pass))) in
+                lwt a = loop2 () in return a
 end
 end
