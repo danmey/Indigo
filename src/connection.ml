@@ -159,7 +159,8 @@ module Server = struct
                 
       in
       return None
-      with End_of_file -> return name
+      with | End_of_file
+           | Unix.Unix_error _ -> return name
     in
     let add_client (in_ch,out_ch) = Queue.add {name=None; in_ch; out_ch} clients in
     
