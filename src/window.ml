@@ -16,10 +16,10 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
   --------------------------------------------------------------------------*)
 
-type window = {
+type 'a window = {
   mutable pos : Rect.t;
   mutable children : window list;
-  mutable painter : Rect.t -> unit;
+  widget : 'a
 }
 
 let default_painter _ = ()
