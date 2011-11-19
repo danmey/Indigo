@@ -187,7 +187,8 @@ module Client = struct
     | UserAlreadyLoggedIn of string
     | Kick of string
   let connect ?(kick=false) { LoginData.port; LoginData.host; LoginData.login } disconnect =
-     lwt entry = gethostbyname host in
+     lwt host_name = gethostname () in
+     lwt entry = gethostbyname host_name in
      let host = entry.h_addr_list.(0) in
      let addr = ADDR_INET (host, port) in
      lwt in_ch, out_ch = open_connection addr in
