@@ -57,8 +57,8 @@ module Log = struct
         | NewUser user -> LOG "< New user '%s'" user LEVEL DEBUG
         | UserAlreadyLoggedIn user -> LOG "< User '%s' already logged in" user LEVEL DEBUG 
         | KickUser user -> LOG "< User '%s' has been kicked" user LEVEL DEBUG
-        (* TODO | UserList of string list *)
-        | _ -> LOG "< Unknow message" LEVEL DEBUG
+        | UserList _ -> LOG "< Users list requested" LEVEL DEBUG
+        | _ -> LOG "< Unknown message" LEVEL DEBUG
     end
 
   let input_value ch =

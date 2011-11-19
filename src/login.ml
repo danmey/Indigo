@@ -19,8 +19,6 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
   --------------------------------------------------------------------------*)
 
-module Config = Config.Client
-
 let mOk = "Ok"
 let mCancel = "Cancel"
 
@@ -241,7 +239,7 @@ let cmd_options data =
     | None, _ -> None
 
 let create () =
-  Config.with_profile (fun data' ->
+  Config.NewClient.with_profile (fun data' ->
     if Array.length Sys.argv > 1 then begin
       let no_login_ui, data = cmd_options data' in
       let data = match data with

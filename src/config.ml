@@ -1,6 +1,6 @@
 (*----------------------------------------------------------------------------
   config.ml - Config file parsing
-  Copyright (C) 2011 Wojciech Meyer 
+  Copyright (C) 2011 Wojciech Meyer, Jakub Oboza 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,15 +16,60 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
   --------------------------------------------------------------------------*)
 
+open Yojson.Safe
 open Config_file
+module NewClient = struct
 
-module Client = struct
-  let config_file = (Unix.getpwuid (Unix.getuid ())).Unix.pw_dir ^ "/.indigo.ml"
+  exception Wrong_type of string
+
+  (* TODO add File.join / Unix.join *)
+  let config_file = (Unix.getpwuid (Unix.getuid ())).Unix.pw_dir ^ "/.indigo.json"
+  let config = from_file config_file
   let default_host = "danmey.org"
   let default_uname = "wojtek"
   let default_port = 1234
   let default_profile = "main"
 
+  let int = function `Int i -> i | _ -> raise (Wrong_type "int")
+  let string = function `String s -> s | _ -> raise (Wrong_type "string")
+
+ 
+
+  let read () = 
+    let config = from_file config_file in
+    let get_param conversion param_name default_value = match config with
+           | `Assoc lst -> conversion(List.assoc param_name lst)
+           | _ -> default_value in
+    let host    = get_param string "host"    default_host       in
+    let uname   = get_param string "uname"   default_uname      in
+    let port    = get_param int    "port"    default_port       in
+    let pass    = get_param string "pass"    default_profile    in   
+    { LoginData.host;
+      LoginData.port;
+      LoginData.login = Some 
+        (LoginData.FullLogin 
+           { LoginData.uname;
+             LoginData.pass; }) } 
+
+  let write data = ()
+
+  let with_profile f = let data = read () in 
+                       let data = f data  in
+                       match data with 
+                         | Some data -> write data; Some data 
+                         | None -> data
+
+end
+
+
+
+module Client = struct
+  let config_file =  "/.indigo.json"
+  let default_host = "danmey.org"
+  let default_uname = "wojtek"
+  let default_port = 1234
+  let default_profile = "main"
+  
   let entries group profile =
     let host_cp = new string_cp ~group [profile; "host"] default_host "Host name." in
     let port_cp = new int_cp ~group [profile; "port"] default_port "Port." in
