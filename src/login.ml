@@ -239,7 +239,7 @@ let cmd_options data =
     | None, _ -> None
 
 let create () =
-  Config.NewClient.with_profile (fun data' ->
+  Config.Client.with_profile (fun data' ->
     if Array.length Sys.argv > 1 then begin
       let no_login_ui, data = cmd_options data' in
       let data = match data with
