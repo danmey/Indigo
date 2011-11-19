@@ -43,6 +43,9 @@ module Log = struct
       match cmd with
 	| Disconnect str -> LOG "Client '%s' disconnected" str LEVEL DEBUG
 	| RequestLogin (username, pass) -> LOG "RequestLogin from %s with password %s" username pass LEVEL DEBUG
+        | RequestUserList -> LOG "RequestUserList" LEVEL DEBUG
+        | Quit user -> LOG "User '%s' has quit" user LEVEL DEBUG
+        | Kick user -> LOG "User '%s' was kicked from server" user LEVEL DEBUG
 	| _ -> ()
     end
     | _ -> ()
