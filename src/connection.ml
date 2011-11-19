@@ -44,7 +44,7 @@ module Server = struct
     try f x with Unix.Unix_error (Unix.EINTR, _, _) -> restart_on_EINTR f x
 
   let rec start port =
-    LOG "Strting server on port: (%d)" port LEVEL DEBUG;
+    LOG "Starting server on port: (%d)" port LEVEL DEBUG;
     Sys.set_signal Sys.sigpipe Sys.Signal_ignore;
     Sys.catch_break true;
     lwt host_name = gethostname () in
