@@ -22,35 +22,8 @@ open Lwt_unix
 open Lwt_chan
 
 
-module Make(C : sig
-  type client_cmd =
-    | MoveElement of string * (int * int)
-    | Login of string
-    | BadPassword of string
-    | BadUser of string
-    | UserList of string list
-    | NewUser of string
-    | UserAlreadyLoggedIn of string
-    | KickUser of string
-  type server_cmd =
-    | Disconnect of string
-    | RequestLogin of string * string
-    | RequestUserList
-    | Quit of string
-    | Kick of string
-  type t =
-    | Server of server_cmd
-    | Client of client_cmd
-
-(* include module type of Protocol *)
-end)(R : sig val receive : C.client_cmd -> unit end) = struct
-
-  let read_val_client in_ch =
-    try_lwt
-      input_value in_ch >>= fun (v : C.client_cmd) -> return (Some v)
-    with
-      | End_of_file -> return None
-      | Unix.Unix_error (_,_,_) -> return None
+module Make(C : Protocol.S with type t = Protocol.t)
+(* include module type of Protocol *)(R : sig val receive : C.client_cmd -> unit end)  = struct
 
   let read_val_server in_ch =
     try_lwt
@@ -58,8 +31,8 @@ end)(R : sig val receive : C.client_cmd -> unit end) = struct
     with 
       | End_of_file -> return None
       | Unix.Unix_error (_,_,_) -> return None
-    
 
+  open Protocol.Log    
 module Server = struct
 
   type client = {
@@ -71,6 +44,7 @@ module Server = struct
     try f x with Unix.Unix_error (Unix.EINTR, _, _) -> restart_on_EINTR f x
 
   let rec start port =
+    LOG "Strting server on port: (%d)" port LEVEL DEBUG;
     Sys.set_signal Sys.sigpipe Sys.Signal_ignore;
     Sys.catch_break true;
     lwt host_name = gethostname () in
@@ -105,6 +79,7 @@ module Server = struct
     in
 
     let kick_client uname =
+    LOG "St: (%d)" port LEVEL DEBUG;
       let clients' = Queue.copy clients in
       Queue.clear clients;
       begin Queue.iter 
@@ -165,7 +140,7 @@ module Server = struct
     let add_client (in_ch,out_ch) = Queue.add {name=None; in_ch; out_ch} clients in
     
     let server = Lwt_io.establish_server addr add_client in
-    
+        
     at_exit (fun () -> Lwt_io.shutdown_server server);
     while_lwt true do 
     lwt () = Lwt_unix.sleep 0.01 in 
