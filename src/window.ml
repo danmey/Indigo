@@ -101,13 +101,9 @@ let abs_pos window =
 
 let find_window position =
   let rec loop rect window =
-    Printf.printf "rect1: %s\n" (Rect.to_string rect);
     let rect = Rect.place_in window.pos rect in
-    Printf.printf "pos: %s\n" (Pos.to_string position);
-    Printf.printf "rect2: %s\n" (Rect.to_string window.pos);
-    flush stdout;
     (if Rect.is_in rect position then
-        [window] @ List.concat (List.map (loop rect) window.children)
+        window :: List.concat (List.map (loop rect) window.children)
      else 
         [])
   in
