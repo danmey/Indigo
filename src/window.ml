@@ -21,8 +21,9 @@ module Make(G : Widget.GRAPHICS) = struct
 type window = {
   mutable pos : Rect.t;
   mutable children : window list;
-  send_click : EventInfo.click -> unit;
-  send_paint : Rect.t -> unit;
+  send_click : EventInfo.Mouse.Click.t -> unit;
+  send_paint : Rect.t * Timestamp.t -> unit;
+  send_time : Timestamp.t -> unit;
   (* painter : G.gc -> Rect.t -> unit *)
   widget : (module Widget.S)
 }
@@ -36,33 +37,41 @@ let default rect =
       struct 
         let click, send_click = React.E.create () 
         let paint, send_paint = React.E.create () 
+        let press, send_ = React.E.create () 
+        let time, send_time = React.S.create (Timestamp.get ()) 
+        let release, send_ = React.E.create () 
       end
   in
   { pos = rect; 
     children = []; 
     send_click = Event.send_click;
     send_paint = Event.send_paint;
+    send_time = Event.send_time;
     widget = (module Widget.MakeBoard(Widget.FreeLayout)(Widget.MakeDefaultPainter(G))(Event) : Widget.S) }
 
+let desktop_rect () = Rect.rect (0,0) (300,300)
+let desktop = default (desktop_rect())
 let empty_window () = default Rect.o
 
-let desktop = default Rect.o
 
 let shelf rect = desktop.pos <- rect
 
 (* let desktop_rect () = Rect.rect (0,0) (Display.display_size ()) *)
-let desktop_rect () = Rect.rect (0,0) (300,300)
 let with_scisor _ f = f ()
 
 let rec draw_window (canvas : G.gc) window =
+  let ts = Timestamp.get () in
   let rec draw_client_window rect { pos; children; widget; send_paint } =
     let client_rect = Rect.place_in pos rect in
     with_scisor rect (fun () ->
-      let module W = (val widget : Widget.S) in
-      send_paint client_rect;
+      send_paint (client_rect,ts);
       List.iter (draw_client_window (Rect.together rect client_rect)) children)
   in
   draw_client_window (desktop_rect ()) window
+
+let rec iter_window f window =
+  f window;
+  List.iter (iter_window f) window.children
 
 let draw_desktop canvas = 
   draw_window canvas desktop
@@ -92,13 +101,17 @@ let abs_pos window =
 
 let find_window position =
   let rec loop rect window =
-    let rect = Rect.place_in window.pos rect  in
+    Printf.printf "rect1: %s\n" (Rect.to_string rect);
+    let rect = Rect.place_in window.pos rect in
+    Printf.printf "pos: %s\n" (Pos.to_string position);
+    Printf.printf "rect2: %s\n" (Rect.to_string window.pos);
+    flush stdout;
     (if Rect.is_in rect position then
         [window] @ List.concat (List.map (loop rect) window.children)
      else 
         [])
   in
-  List.rev (loop (Rect.rect (0,0) (0,0)) desktop)
+  List.rev (loop (desktop_rect()) desktop)
       
 let add parent window =
   parent.children <-  parent.children @ [window];
@@ -118,9 +131,16 @@ let client_pos window global_pos =
 
 let button_pressed pos =
   match find_window pos with
-    | w :: _ ->
-      print_endline "window found";
-      flush stdout;
-      w.send_click { EventInfo.mouse= { EventInfo.pos }; EventInfo.left = true }
+    | { send_click } :: _ ->
+      send_click {
+        EventInfo.Mouse.Click.time_stamp = Timestamp.get ();
+        EventInfo.Mouse.Click.mouse = 
+          { EventInfo.Mouse.pos; 
+            EventInfo.Mouse.button = EventInfo.Mouse.Left 
+          } }
     | [] -> ()
+
+let iddle () =
+  let ts = Timestamp.get () in
+  iter_window (fun ({ send_time } as w) -> send_time ts) desktop
 end

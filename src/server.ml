@@ -27,6 +27,7 @@ module GtkBackend = struct
     let text ~pos:((x:int),(y:int)) string = ()
     let rectangle ~pos:(x,y) ~size:(width,height) = ()
     let background _ = ()
+    let foreground _ = ()
   end
   let bitmap_of_file ~(fn:string) = ()
 

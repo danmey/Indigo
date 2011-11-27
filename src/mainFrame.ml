@@ -45,15 +45,15 @@ module GtkBackend = struct
         
     let rectangle ~pos:(x,y) ~size:(width,height) = 
       with_canvas (fun (gc : gc) -> 
-        let col = `RGB (255, 255, 255) in
-        gc # set_foreground `WHITE;
-        gc # set_background `WHITE;
-        gc # rectangle ~filled:true ~x ~y ~width ~height ();
-        let col = `RGB (0, 0, 0) in
-        gc # set_foreground `BLACK;
-        gc # rectangle ~x ~y ~width ~height ())
+        gc # rectangle ~filled:true ~x ~y ~width ~height ())
+
         
     let background (r,g,b) =
+      with_canvas (fun (gc : gc) -> 
+      let col = `RGB (r, g, b) in
+      gc # set_background col
+      )
+    let foreground (r,g,b) =
       with_canvas (fun (gc : gc) -> 
       let col = `RGB (r, g, b) in
       gc # set_foreground col
@@ -146,9 +146,10 @@ let button_pressed send area backing ev =
   if GdkEvent.Button.button ev = 1 then
     begin
       let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
-      Window.button_pressed (x,y);
-      Lwt.ignore_result (table (fun c -> Table.button_pressed c ~x ~y));
+      Lwt.ignore_result (table (fun c -> Table.button_pressed c ~x ~y))
     end;
+  let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
+  Window.button_pressed (x,y);
   (* table (fun c -> send (Protocol.Client (Protocol.State c)); c); *)
   true
 
@@ -230,6 +231,7 @@ let rec update_display send (area:GMisc.drawing_area) () =
   !GtkBackend.gc#rectangle ~x:0 ~y:0 ~width ~height ~filled:true ();
   Lwt.ignore_result (table (fun c -> Table.draw c !GtkBackend.gc; Window.draw_window !GtkBackend.gc Window.desktop; c));
   area#misc#draw (Some update_rect);
+  Window.iddle ();
   Lwt.bind (Lwt_unix.sleep 0.01) (update_display send area)
 
 let create () =

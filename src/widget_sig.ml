@@ -6,6 +6,7 @@ module type GRAPHICS = sig
     val text : pos:(int * int) -> string -> unit
     val rectangle : pos:(int*int) -> size:(int*int) -> unit
     val background : int * int * int -> unit
+    val foreground : int * int * int -> unit
   end
   val bitmap_of_file : fn:string -> bitmap
   val size_of_bitmap : bitmap -> int*int
@@ -25,16 +26,20 @@ module type PAINTER = sig
   val frame : Rect.t -> unit
   val string :  Rect.t -> string -> unit
   val background : int * int * int -> unit
+  val foreground : int * int * int -> unit
 end
 
 module type STATE = sig
-  type t = Normal|Pressed
+  type t = Normal | Pressed | Start of Timestamp.t
   val initial : t
 end
 
 module type EVENT = sig
-  val click : EventInfo.click React.E.t
-  val paint : Rect.t React.E.t
+  val click : EventInfo.Mouse.Click.t React.E.t
+  val press : EventInfo.Mouse.Press.t React.E.t
+  val release : EventInfo.Mouse.Press.t React.E.t
+  val paint : (Rect.t * Timestamp.t) React.E.t
+  val time : Timestamp.t React.S.t
 end
 
 
@@ -46,13 +51,12 @@ module type S = sig
   type gc = Painter.gc
   val pack : Layout.t -> Rect.t -> Rect.t
   val paint : unit React.E.t
-  val state : State.t React.E.t
+  val state : State.t React.S.t
 end
 
 module type MAKE =
   functor (Layout : LAYOUT) -> 
     functor (Painter : PAINTER) -> 
         functor (Event : EVENT) -> S
-
 
 

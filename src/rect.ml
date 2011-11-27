@@ -45,4 +45,12 @@ let lift4 f { x; y; w; h; } = f x, f y, f w, f h
 let lift22 f g  { x; y; w; h; } = f x, f y, g w,g h
 let coords { x; y; w; h } = x,y,w,h
 let coordsf { x; y; w; h } = float x, float y, float w, float h
-
+let to_string { x; y; w; h; } = Printf.sprintf "{ x=%d; y=%d; w=%d; h=%d }" x y w h
+let shrink { x; y; w; h; } pixels = 
+  { x= x + pixels; 
+    y = y + pixels; 
+    w = w - 2 * pixels; 
+    h = h - 2 * pixels }
+let scale s ({w; h} as r) = { r with 
+  w = int_of_float (float w *. s); 
+  h = int_of_float (float h *. s); }
