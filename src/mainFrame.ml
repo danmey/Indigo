@@ -52,6 +52,12 @@ module GtkBackend = struct
         let col = `RGB (0, 0, 0) in
         gc # set_foreground `BLACK;
         gc # rectangle ~x ~y ~width ~height ())
+        
+    let background (r,g,b) =
+      with_canvas (fun (gc : gc) -> 
+      let col = `RGB (r, g, b) in
+      gc # set_foreground col
+      )
   end
   let bitmap_of_file ~fn = GdkPixbuf.from_file fn
 
@@ -140,7 +146,8 @@ let button_pressed send area backing ev =
   if GdkEvent.Button.button ev = 1 then
     begin
       let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
-      Lwt.ignore_result (table (fun c -> Table.button_pressed c ~x ~y))
+      Window.button_pressed (x,y);
+      Lwt.ignore_result (table (fun c -> Table.button_pressed c ~x ~y));
     end;
   (* table (fun c -> send (Protocol.Client (Protocol.State c)); c); *)
   true

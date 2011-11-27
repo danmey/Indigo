@@ -21,6 +21,8 @@ module Make(G : Widget.GRAPHICS) = struct
 type window = {
   mutable pos : Rect.t;
   mutable children : window list;
+  send_click : EventInfo.click -> unit;
+  send_paint : Rect.t -> unit;
   (* painter : G.gc -> Rect.t -> unit *)
   widget : (module Widget.S)
 }
@@ -29,9 +31,18 @@ type window = {
 (*   G.Draw.rectangle canvas ~pos:(Rect.pos pos) ~size:(Rect.size pos) *)
 
 
-let default rect = { pos = rect; 
-                     children = []; 
-                     widget = (module Widget.MakeBoard(Widget.FreeLayout)(Widget.MakeDefaultPainter(G))(Widget.DefaultState) : Widget.S) }
+let default rect =
+  let module Event =
+      struct 
+        let click, send_click = React.E.create () 
+        let paint, send_paint = React.E.create () 
+      end
+  in
+  { pos = rect; 
+    children = []; 
+    send_click = Event.send_click;
+    send_paint = Event.send_paint;
+    widget = (module Widget.MakeBoard(Widget.FreeLayout)(Widget.MakeDefaultPainter(G))(Event) : Widget.S) }
 
 let empty_window () = default Rect.o
 
@@ -44,11 +55,11 @@ let desktop_rect () = Rect.rect (0,0) (300,300)
 let with_scisor _ f = f ()
 
 let rec draw_window (canvas : G.gc) window =
-  let rec draw_client_window rect { pos; children; widget } =
+  let rec draw_client_window rect { pos; children; widget; send_paint } =
     let client_rect = Rect.place_in pos rect in
     with_scisor rect (fun () ->
       let module W = (val widget : Widget.S) in
-      W.paint W.State.initial client_rect;
+      send_paint client_rect;
       List.iter (draw_client_window (Rect.together rect client_rect)) children)
   in
   draw_client_window (desktop_rect ()) window
@@ -104,4 +115,12 @@ let relative_pos window_relative window =
 
 let client_pos window global_pos = 
   Pos.sub global_pos (Rect.pos (abs_pos window))
+
+let button_pressed pos =
+  match find_window pos with
+    | w :: _ ->
+      print_endline "window found";
+      flush stdout;
+      w.send_click { EventInfo.mouse= { EventInfo.pos }; EventInfo.left = true }
+    | [] -> ()
 end
