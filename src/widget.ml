@@ -39,27 +39,13 @@ module MakeDefaultPainter(G : GRAPHICS) = struct
   type t
   module Graphics = G
   type gc = G.gc
-  let frame pos =  G.Draw.rectangle ~pos:(Rect.pos pos) ~size:(Rect.size pos)
+  let frame pos = G.Draw.rectangle ~pos:(Rect.pos pos) ~size:(Rect.size pos)
   let string pos str = ()
 end
 
 module DefaultState = struct
   type t = [`Normal]
   let initial = `Normal
-end
-
-module type MAKE =
-  functor (Layout : LAYOUT) -> 
-    functor (Painter : PAINTER) -> 
-      functor (State : STATE) -> sig
-
-  module Layout : LAYOUT
-  module State : STATE
-  module Painter : PAINTER
-  type gc = Painter.gc
-  val pack : Layout.t -> Rect.t -> Rect.t
-  val paint : State.t -> Rect.t -> unit
-  val change : State.t -> State.t
 end
 
 module type S = sig
@@ -71,6 +57,11 @@ module type S = sig
   val paint : State.t -> Rect.t -> unit
   val change : State.t -> State.t
 end
+
+module type MAKE =
+  functor (Layout : LAYOUT) -> 
+    functor (Painter : PAINTER) -> 
+      functor (State : STATE) -> S
 
 module MakeBoard(L : LAYOUT)(P : PAINTER)(S : STATE) : S = struct
   module Layout = L
