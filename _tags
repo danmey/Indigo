@@ -5,8 +5,8 @@
 <src/connection.ml>: package(bolt)
 <src/config.ml>: package(yojson)
 <src/protocol.ml>: syntax(camlp4o), package(bolt), package(lwt),package(lwt.syntax)
-<src/{login,objectTree,userList,mainFrame}.ml>: package(lablgtk2)
-<src/indigo.native>: package(lwt), package(lwt.unix), package(lwt.glib), package(lablgtk2), package(pcre), package(bolt), package(yojson), package(react)
-<src/server.native>: package(lwt), package(lwt.unix), package(pcre), package(bolt), package(yojson),package(react)
+<src/{login,objectTree,userList,mainFrame}.ml>: package(lablgtk2), package(cairo.lablgtk2)
+<src/indigo.native>: package(lwt), package(lwt.unix), package(lwt.glib), package(lablgtk2), package(pcre), package(bolt), package(yojson), package(react), package(cairo.lablgtk2)
+<src/server.native>: package(lwt), package(lwt.unix), package(pcre), package(bolt), package(yojson),package(react), package(cairo), package(cairo.lablgtk2)
 <src/{widget,widget_sig,window}.*>: package(react)
 

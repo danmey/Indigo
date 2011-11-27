@@ -25,7 +25,15 @@ let font = lazy (Gdk.Font.load "-adobe-helvetica-bold-r-normal--12-120-75-75-p-7
 module GtkBackend = struct
   type bitmap = GdkPixbuf.pixbuf
   type gc = GDraw.pixmap
-  let gc = ref ((GDraw.pixmap ~width:200 ~height:200 ()))
+      
+  let gc = ref (let px = GDraw.pixmap ~width:200 ~height:200 () in
+                begin
+                  px#set_foreground `BLACK ;
+                  let width, height = px#size in
+                  px#rectangle ~x:0 ~y:0 ~width ~height ~filled:true ()
+                end;
+                px)
+
 
   let resources = Hashtbl.create 137
   module Draw = struct
@@ -33,30 +41,42 @@ module GtkBackend = struct
       match !gc with
         | canvas -> f canvas
 
-    let bitmap ~pos:(x,y) (bitmap:bitmap) =
-    with_canvas (fun (gc : gc) ->  gc#put_pixbuf ~x ~y bitmap)
-        
+
+    (* let bitmap ~pos:(x,y) (bitmap:bitmap) = *)
+    (*   with_canvas (fun (gc : gc) ->  gc#put_pixbuf ~x ~y bitmap) *)
+    let bitmap ~pos:(x,y) (bitmap:bitmap) = ()
+    
     let text ~pos:(x,y) text =
-      with_canvas (fun (gc : gc) -> 
-        let col = `RGB (0, 0, 0) in
-        gc # set_foreground col;
-        gc # string ~x ~y ~font:(Lazy.force font) text;
+      with_canvas (fun gc -> 
+        
+        (* let col = `RGB (0, 0, 0) in *)
+        (* gc # set_foreground col; *)
+        (* gc # string ~x ~y ~font:(Lazy.force font) text; *)
         ())
         
     let rectangle ~pos:(x,y) ~size:(width,height) = 
-      with_canvas (fun (gc : gc) -> 
-        gc # rectangle ~filled:true ~x ~y ~width ~height ())
+      let x,y,width, height = float x, float y, float width, float height in
+      with_canvas (fun gc ->
+        let cr = Cairo_lablgtk.create (gc)#pixmap in
+        Cairo.rectangle cr ~x ~y ~width ~height;
+        Cairo.fill cr;
+      )
 
         
     let background (r,g,b) =
-      with_canvas (fun (gc : gc) -> 
-      let col = `RGB (r, g, b) in
-      gc # set_background col
+      let red,green,blue = float r, float g, float b in
+      with_canvas (fun gc -> 
+        let cr = Cairo_lablgtk.create (gc)#pixmap in
+        Cairo.set_source_rgb ~red ~green ~blue;
+      (* let col = `RGB (r, g, b) in *)
+      (* gc # set_background col *)
+        ()
       )
     let foreground (r,g,b) =
-      with_canvas (fun (gc : gc) -> 
-      let col = `RGB (r, g, b) in
-      gc # set_foreground col
+      with_canvas (fun gc -> 
+      (* let col = `RGB (r, g, b) in *)
+      (* gc # set_foreground col *)
+        ()
       )
   end
   let bitmap_of_file ~fn = GdkPixbuf.from_file fn
@@ -111,7 +131,7 @@ let configure window backing ev =
   let width = GdkEvent.Configure.width ev in
   let height = GdkEvent.Configure.height ev in
   let pixmap = GDraw.pixmap ~width ~height ~window () in
-  pixmap#set_foreground `WHITE;
+  pixmap#set_foreground `BLACK;
   pixmap#rectangle ~x:0 ~y:0 ~width ~height ~filled:true ();
   backing := pixmap;
   true
