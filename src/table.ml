@@ -17,7 +17,7 @@
   --------------------------------------------------------------------------*)
 
 
-module Make(G : Board.GRAPHICS_BACKEND) = struct
+module Make(G : Widget.GRAPHICS) = struct
   module Board = Board.Make(G)
   module Element = Board.Element
   type t = { boards: Board.t list }

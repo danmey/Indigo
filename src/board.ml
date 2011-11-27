@@ -16,20 +16,6 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
   --------------------------------------------------------------------------*)
 
-module type GRAPHICS_BACKEND = sig
-  type bitmap
-  type gc
-  module Draw : sig
-    val bitmap : pos:(int * int) -> gc -> bitmap -> unit
-    val text : pos:(int * int) -> gc -> string -> unit
-    val rectangle : pos:(int*int) -> size:(int*int) -> gc -> unit
-  end
-  val bitmap_of_file : fn:string -> bitmap
-  val size_of_bitmap : bitmap -> int*int
-  val bitmap : string -> bitmap
-  val load_bitmap : string -> bitmap
-end
-
 
 module type NETWORK_BACKEND = sig
   type t
@@ -38,7 +24,7 @@ module type NETWORK_BACKEND = sig
 end
 
 
-module Make(G : GRAPHICS_BACKEND) = struct
+module Make(G : Widget.GRAPHICS) = struct
   type element  = 
       { width : int;
         height : int;
@@ -121,18 +107,18 @@ let rec button_released e ~x ~y =
       }
 
     and draw canvas t =
-      G.Draw.bitmap canvas (G.bitmap t.graphics) ~pos:t.pos;
-      G.Draw.text canvas t.id ~pos:t.pos
+      G.Draw.bitmap (G.bitmap t.graphics) ~pos:t.pos;
+      G.Draw.text t.id ~pos:t.pos
 
   end
 
   let rec draw canvas { board; elements } =
-    G.Draw.rectangle canvas ~pos:board.pos ~size:(board.width, board.height);
+    G.Draw.rectangle ~pos:board.pos ~size:(board.width, board.height);
     let x, y = board.pos in
     let x, y = x + 10, y + 10 in
     let width, height = board.width - 20, board.height - 20 in
     let pos = x,y in
-    G.Draw.rectangle canvas ~pos:pos ~size:(width, height);
+    G.Draw.rectangle ~pos:pos ~size:(width, height);
     List.iter (Element.draw canvas) (List.map (absolute board) elements)
 
   and absolute board el =

@@ -16,17 +16,22 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
   --------------------------------------------------------------------------*)
 
-type 'a window = {
+module Make(G : Widget.GRAPHICS) = struct
+
+type window = {
   mutable pos : Rect.t;
   mutable children : window list;
-  widget : 'a
+  (* painter : G.gc -> Rect.t -> unit *)
+  widget : (module Widget.S)
 }
 
-let default_painter _ = ()
+(* let default_painter canvas pos =  *)
+(*   G.Draw.rectangle canvas ~pos:(Rect.pos pos) ~size:(Rect.size pos) *)
+
 
 let default rect = { pos = rect; 
                      children = []; 
-                     painter = default_painter }
+                     widget = (module Widget.MakeBoard(Widget.FreeLayout)(Widget.MakeDefaultPainter(G))(Widget.DefaultState) : Widget.S) }
 
 let empty_window () = default Rect.o
 
@@ -34,20 +39,22 @@ let desktop = default Rect.o
 
 let shelf rect = desktop.pos <- rect
 
-let desktop_rect () = Rect.rect (0,0) (Display.display_size ())
+(* let desktop_rect () = Rect.rect (0,0) (Display.display_size ()) *)
+let desktop_rect () = Rect.rect (0,0) (300,300)
+let with_scisor _ f = f ()
 
-let rec draw_window window =
-  let rec draw_client_window rect { pos; children; painter } =
+let rec draw_window (canvas : G.gc) window =
+  let rec draw_client_window rect { pos; children; widget } =
     let client_rect = Rect.place_in pos rect in
     with_scisor rect (fun () ->
-      painter client_rect;
-      List.iter (draw_client_window (together rect client_rect)) children)
+      let module W = (val widget : Widget.S) in
+      W.paint W.State.initial client_rect;
+      List.iter (draw_client_window (Rect.together rect client_rect)) children)
   in
   draw_client_window (desktop_rect ()) window
 
-let draw_desktop () = 
-  Texgen.update_texture();
-  draw_window desktop
+let draw_desktop canvas = 
+  draw_window canvas desktop
 
 let window_path window =
   let bool_of_option = function Some _ -> true | None -> false  in
@@ -86,9 +93,9 @@ let add parent window =
   parent.children <-  parent.children @ [window];
   ()
 
-let remove parent window =
-  parent.children <- BatList.remove_if ((==) window) parent.children;
-  ()
+(* let remove parent window = *)
+(*   parent.children <- BatList.remove_if ((==) window) parent.children; *)
+(*   () *)
 
 let relative_pos window_relative window =
   let window_relative_pos = abs_pos window_relative in
@@ -96,4 +103,5 @@ let relative_pos window_relative window =
   Rect.subr window_relative_pos window_pos
 
 let client_pos window global_pos = 
-  Pos.sub global_pos (pos (abs_pos window))
+  Pos.sub global_pos (Rect.pos (abs_pos window))
+end
