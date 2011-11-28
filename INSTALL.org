@@ -1,0 +1,8 @@
+* Dependencies
+- ocaml 3.12.1
+- lablgtk2
+- lwt
+- react
+- yojson
+* Building
+ ~ocamlbuild -use-ocamlfind indigo.otarget~
