@@ -39,8 +39,6 @@ module GtkBackend = struct
 
 end
 
-module Canvas = Table.Make(GtkBackend)
-module Board = Board.Make(GtkBackend)
 module Connection = Connection.Make(Protocol)(struct 
   let receive (_ : Protocol.client_cmd) = () end)
 

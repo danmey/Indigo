@@ -114,28 +114,11 @@ module GtkBackend = struct
 
 end
 
-module Table = Table.Make(GtkBackend)
-module Board = Board.Make(GtkBackend)
 module Window = Window.Make(GtkBackend)
   (struct let size () = 
             match !main_window_size with
               | Some size -> size
               | None -> 0,0 end)
-(* module Protocol = Protocol.Make(Table) *)
-
-(* Backing pixmap for drawing area *)
-let the_table = ref (Table.create ())
-let table_mutex = Lwt_mutex.create ()
-let table f =
-  Lwt_mutex.with_lock table_mutex 
-    (fun () ->
-      the_table := f !the_table;
-      return ())
-
-let set_table c =
-  Lwt.ignore_result (Lwt_mutex.with_lock table_mutex 
-    (fun () ->
-      return (ignore(the_table := c))))
 
 module Listener = struct
   let listeners = ref []
@@ -187,7 +170,8 @@ let button_pressed send area backing ev =
   if GdkEvent.Button.button ev = 1 then
     begin
       let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
-      Lwt.ignore_result (table (fun c -> Table.button_pressed c ~x ~y))
+      ()
+      (* Lwt.ignore_result (table (fun c -> Table.button_pressed c ~x ~y)) *)
     end;
   let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
   Window.button_pressed (x,y);
@@ -198,9 +182,8 @@ let button_release send area backing ev =
   if GdkEvent.Button.button ev = 1 then
     begin
       let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
-      Lwt.ignore_result (table (fun c -> Table.button_released c ~x ~y))
+      ()
     end;
-  (* table (fun c -> send (Protocol.Client (Protocol.State c)); c); *)
   true
 
 let motion_notify send area backing ev =
@@ -210,13 +193,6 @@ let motion_notify send area backing ev =
 	else
       (int_of_float (GdkEvent.Motion.x ev), int_of_float (GdkEvent.Motion.y ev))
   in
-  table (fun c -> 
-    let c = Table.motion c ~x ~y in
-    begin if Table.dragged c then
-        ()
-        (* Lwt.ignore_result (send (Protocol.Client (Protocol.State c))) *)
-    end;
-    c);
   true
 
 
@@ -245,20 +221,7 @@ let drag_drop
     (src_widget : GTree.view) 
     (context : GObj.drag_context) ~x ~y ~time =
   let a = src_widget#drag#get_data ~target:"INTEGER"  ~time context in
-      Lwt.ignore_result 
-        (table 
-           (fun c ->
-             match (ObjectTree.selected src_widget) with 
-               | Some `Dice -> 
-                 begin match Table.try_drop ~x ~y c with
-                   | Some board -> Table.add_element c board (Board.Element.dice ~x ~y (gensym ()))
-                   | None -> c end
-               | Some `Board -> Window.add Window.desktop (Window.default (Rect.rect (x,y) (200,200)));c
-
-(* Table.add c (Board.board ~x ~y (gensym ())) *)
-               | _ -> c
-           ));  
-      true
+  true
         
 
 let rec update_display send (area:GMisc.drawing_area) () =
@@ -270,7 +233,6 @@ let rec update_display send (area:GMisc.drawing_area) () =
 
   !GtkBackend.gc#set_foreground `WHITE;
   !GtkBackend.gc#rectangle ~x:0 ~y:0 ~width ~height ~filled:true ();
-  Lwt.ignore_result (table (fun c -> Table.draw c !GtkBackend.gc; Window.draw_window !GtkBackend.gc Window.desktop; c));
   area#misc#draw (Some update_rect);
   main_window_size := (Some (width, height));
   Window.iddle ();
@@ -283,12 +245,8 @@ let create () =
     Lwt_glib.install  (); 
     
     let waiter, wakener = Lwt.wait () in
-    
-    (* let port = (int_of_string (Sys.argv.(1))) in *)
-    
     let width = 200 in
     let height = 200 in
-  
     let window = GWindow.window ~title:"Indigo" () in
 
     let _ = window#connect#destroy ~callback:(fun () -> wakeup wakener ()) in
