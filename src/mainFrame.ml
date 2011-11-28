@@ -22,6 +22,7 @@ open Lwt_unix
 
 let font = lazy (Gdk.Font.load "-adobe-helvetica-bold-r-normal--12-120-75-75-p-70-iso8859-1")
 
+let main_window_size = ref None
 module GtkBackend = struct
   type bitmap = GdkPixbuf.pixbuf
   type gc = GDraw.pixmap
@@ -116,6 +117,10 @@ end
 module Table = Table.Make(GtkBackend)
 module Board = Board.Make(GtkBackend)
 module Window = Window.Make(GtkBackend)
+  (struct let size () = 
+            match !main_window_size with
+              | Some size -> size
+              | None -> 0,0 end)
 (* module Protocol = Protocol.Make(Table) *)
 
 (* Backing pixmap for drawing area *)
@@ -148,6 +153,7 @@ let configure window backing ev =
   pixmap#set_foreground `BLACK;
   pixmap#rectangle ~x:0 ~y:0 ~width ~height ~filled:true ();
   backing := pixmap;
+  main_window_size := (Some (width, height));
   true
 
 (* Redraw the screen from the backing pixmap *)
@@ -162,6 +168,7 @@ let expose (drawing_area:GMisc.drawing_area) (backing:GDraw.pixmap ref) ev =
     new GDraw.drawable (drawing_area#misc#window)
   in
   drawing#put_pixmap ~x ~y ~xsrc:x ~ysrc:y ~width ~height !backing#pixmap;
+  main_window_size := (Some (width, height));
   false
 
 (* Draw a rectangle on the screen *)
@@ -265,6 +272,7 @@ let rec update_display send (area:GMisc.drawing_area) () =
   !GtkBackend.gc#rectangle ~x:0 ~y:0 ~width ~height ~filled:true ();
   Lwt.ignore_result (table (fun c -> Table.draw c !GtkBackend.gc; Window.draw_window !GtkBackend.gc Window.desktop; c));
   area#misc#draw (Some update_rect);
+  main_window_size := (Some (width, height));
   Window.iddle ();
   Lwt.bind (Lwt_unix.sleep 0.01) (update_display send area)
 
@@ -292,6 +300,7 @@ let create () =
 
   (* Create the drawing area *)
     let area = GMisc.drawing_area ~width ~height ~packing:main_paned#add () in
+    main_window_size := (Some (width, height));
 
             ignore(area#event#connect#expose ~callback:(expose area GtkBackend.gc));
             ignore(area#event#connect#configure ~callback:(configure window GtkBackend.gc));

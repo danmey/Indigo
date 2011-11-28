@@ -16,7 +16,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
   --------------------------------------------------------------------------*)
 
-module Make(G : Widget_sig.GRAPHICS) = struct
+module Make(G : Widget_sig.GRAPHICS)(Desktop : sig val size : unit -> (int * int) end) = struct
 
 type window = {
   mutable pos : Rect.t;
@@ -46,25 +46,26 @@ let default rect =
     send_time = Event.send_time;
     widget = (module Board.Make(Common.FreeLayout)(Common.MakeDefaultPainter(G))(Event) : Widget_sig.S) }
 
-let desktop_rect () = Rect.rect (0,0) (300,300)
-let desktop = default (desktop_rect())
-let empty_window () = default Rect.o
+let desktop = default (Rect.rect (0,0) (300,300))
 
-
-let shelf rect = desktop.pos <- rect
+let position window = 
+  if window == desktop then 
+    Rect.rect (0,0) (Desktop.size())
+  else window.pos
 
 (* let desktop_rect () = Rect.rect (0,0) (Display.display_size ()) *)
 let with_scisor _ f = f ()
 
 let rec draw_window (canvas : G.gc) window =
   let ts = Timestamp.get () in
-  let rec draw_client_window rect { pos; children; widget; send_paint } =
+  let rec draw_client_window rect ({ children; widget; send_paint } as w) =
+    let pos = position w in
     let client_rect = Rect.place_in pos rect in
     with_scisor rect (fun () ->
       send_paint (client_rect,ts);
       List.iter (draw_client_window (Rect.together rect client_rect)) children)
   in
-  draw_client_window (desktop_rect ()) window
+  draw_client_window (position desktop) window
 
 let rec iter_window f window =
   f window;
@@ -93,18 +94,20 @@ let window_path window =
 let abs_pos window =
   let path = window_path window in
   List.fold_left 
-    (fun rect { pos } ->
+    (fun rect w ->
+      let pos = position window in
       Rect.place_in pos rect) desktop.pos path
 
-let find_window position =
+let find_window pos' =
   let rec loop rect window =
-    let rect = Rect.place_in window.pos rect in
-    (if Rect.is_in rect position then
+    let pos = position window in
+    let rect = Rect.place_in pos rect in
+    (if Rect.is_in rect pos' then
         window :: List.concat (List.map (loop rect) window.children)
      else 
         [])
   in
-  List.rev (loop (desktop_rect()) desktop)
+  List.rev (loop (position desktop) desktop)
       
 let add parent window =
   parent.children <-  parent.children @ [window];
