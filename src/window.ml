@@ -16,7 +16,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
   --------------------------------------------------------------------------*)
 
-module Make(G : Widget.GRAPHICS) = struct
+module Make(G : Widget_sig.GRAPHICS) = struct
 
 type window = {
   mutable pos : Rect.t;
@@ -25,12 +25,8 @@ type window = {
   send_paint : Rect.t * Timestamp.t -> unit;
   send_time : Timestamp.t -> unit;
   (* painter : G.gc -> Rect.t -> unit *)
-  widget : (module Widget.S)
+  widget : (module Widget_sig.S)
 }
-
-(* let default_painter canvas pos =  *)
-(*   G.Draw.rectangle canvas ~pos:(Rect.pos pos) ~size:(Rect.size pos) *)
-
 
 let default rect =
   let module Event =
@@ -42,12 +38,13 @@ let default rect =
         let release, send_ = React.E.create () 
       end
   in
+  let open Widgets in
   { pos = rect; 
     children = []; 
     send_click = Event.send_click;
     send_paint = Event.send_paint;
     send_time = Event.send_time;
-    widget = (module Widget.MakeBoard(Widget.FreeLayout)(Widget.MakeDefaultPainter(G))(Event) : Widget.S) }
+    widget = (module Board.Make(Common.FreeLayout)(Common.MakeDefaultPainter(G))(Event) : Widget_sig.S) }
 
 let desktop_rect () = Rect.rect (0,0) (300,300)
 let desktop = default (desktop_rect())
