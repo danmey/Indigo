@@ -1,5 +1,7 @@
 module type GRAPHICS = sig
-  type t
+  (* This will be abstracted later, after we know which features we need from Cairo
+     possible port to js_of_ocaml *)
+  include module type of Cairo
 end
 
 module type LAYOUT = sig

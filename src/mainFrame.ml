@@ -40,28 +40,6 @@ let configure window ev =
   Window.draw ();
   true
 
-(* Redraw the screen from the backing pixmap *)
-let expose (drawing_area:GMisc.drawing_area) ev =
-  let area = GdkEvent.Expose.area ev in
-  let x = Gdk.Rectangle.x area in
-  let y = Gdk.Rectangle.y area in
-  let width = Gdk.Rectangle.width area in
-  let height = Gdk.Rectangle.height area in
-  let drawing =
-    drawing_area#misc#realize ();
-    new GDraw.drawable (drawing_area#misc#window)
-  in
-  (* drawing#put_pixmap ~x ~y ~xsrc:x ~ysrc:y ~width ~height !backing#pixmap; *)
-  let x,y = 0,0 in
-  let rect = drawing_area # misc # allocation in
-  let update_rect = Gdk.Rectangle.create ~x ~y ~width ~height in
-
-  (* !GtkBackend.gc#set_foreground `WHITE; *)
-  (* !GtkBackend.gc#rectangle ~x:0 ~y:0 ~width ~height ~filled:true (); *)
-  drawing_area#misc#draw (Some update_rect);
-
-  Window.draw ();
-  false
 
 
 let button_pressed send area ev =
@@ -116,30 +94,14 @@ let create () =
 
   (* Create the drawing area *)
     let area = GMisc.drawing_area ~width ~height ~packing:main_paned#add () in
-
-            ignore(area#event#connect#expose ~callback:(expose area));
-            ignore(area#event#connect#configure ~callback:(configure window));
+    let () = Canvas.create ~pane:main_paned in
+    let view = ObjectTree.create ~packing:tool_vbox#add ~canvas:area () in
             
-        (* Event signals *)
-            ignore(area#event#connect#motion_notify ~callback:(motion_notify send area));
-            ignore(area#event#connect#button_press ~callback:(button_pressed send area));
-            ignore(area#event#connect#button_release ~callback:(button_release send area));
-            ignore(area#event#connect#motion_notify ~callback:(motion_notify send area));
-            
-            area#event#add [`EXPOSURE; 
-                            `LEAVE_NOTIFY; 
-                            `BUTTON_PRESS; 
-                            `BUTTON_RELEASE; 
-                            `POINTER_MOTION; 
-                            `POINTER_MOTION_HINT];
-            
-            let view = ObjectTree.create ~packing:tool_vbox#add ~canvas:area () in
-            
-            let target_entry = { Gtk.target= "INTEGER"; Gtk.flags= []; Gtk.info=123 } in
-            view#drag#source_set ~modi:[`BUTTON1] ~actions:[`COPY] [target_entry];
-            area#drag#dest_set ~flags:[`HIGHLIGHT;`MOTION] ~actions:[`COPY] [target_entry];
-            area#drag#connect#data_received ~callback:drag_data_received;
-            area#drag#connect#drop ~callback:(drag_drop area view);
+            (* let target_entry = { Gtk.target= "INTEGER"; Gtk.flags= []; Gtk.info=123 } in *)
+            (* view#drag#source_set ~modi:[`BUTTON1] ~actions:[`COPY] [target_entry]; *)
+            (* area#drag#dest_set ~flags:[`HIGHLIGHT;`MOTION] ~actions:[`COPY] [target_entry]; *)
+            (* area#drag#connect#data_received ~callback:drag_data_received; *)
+            (* area#drag#connect#drop ~callback:(drag_drop area view); *)
             let user_list, receive = UserList.create ~packing:tool_vbox#add ~canvas:area () in
 
     let rec login_loop kick login_data () =
