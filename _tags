@@ -12,3 +12,4 @@
 <src/server.native>: package(lwt), package(lwt.unix), package(pcre), package(bolt), package(yojson),package(react), package(cairo), package(cairo.lablgtk2)
 <src/{widget,widget_sig,window}.*>: package(react)
 <src/widgets/*.*>: for-pack(Widgets),package(react)
+<src/cairoGraphics.ml>: package(lablgtk2), package(cairo.lablgtk2)

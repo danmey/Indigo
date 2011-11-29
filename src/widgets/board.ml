@@ -5,7 +5,6 @@ module Make(L : LAYOUT)(P : PAINTER)(E : EVENT) : S = struct
   module Painter = P
   module State = State (struct end)
   module Event = E
-  type gc = Painter.gc
   let pack gc rect = rect
 
 

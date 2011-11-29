@@ -1,17 +1,5 @@
 module type GRAPHICS = sig
-  type bitmap
-  type gc
-  module Draw : sig
-    val bitmap : pos:(int * int) -> bitmap -> unit
-    val text : pos:(int * int) -> string -> unit
-    val rectangle : pos:(int*int) -> size:(int*int) -> unit
-    val background : int * int * int -> unit
-    val foreground : int * int * int -> unit
-  end
-  val bitmap_of_file : fn:string -> bitmap
-  val size_of_bitmap : bitmap -> int*int
-  val bitmap : string -> bitmap
-  val load_bitmap : string -> bitmap
+  type t
 end
 
 module type LAYOUT = sig
@@ -20,9 +8,6 @@ module type LAYOUT = sig
 end
 
 module type PAINTER = sig
-  module Graphics : GRAPHICS
-  type t
-  type gc = Graphics.gc
   val frame : Rect.t -> unit
   val string :  Rect.t -> string -> unit
   val background : int * int * int -> unit
@@ -48,7 +33,6 @@ module type S = sig
   module Painter : PAINTER
   module Event : EVENT
   module State : STATE
-  type gc = Painter.gc
   val pack : Layout.t -> Rect.t -> Rect.t
   val paint : unit React.E.t
   val state : State.t React.S.t

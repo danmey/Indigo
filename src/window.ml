@@ -56,7 +56,7 @@ let position window =
 (* let desktop_rect () = Rect.rect (0,0) (Display.display_size ()) *)
 let with_scisor _ f = f ()
 
-let rec draw_window (canvas : G.gc) window =
+let rec draw_window window =
   let ts = Timestamp.get () in
   let rec draw_client_window rect ({ children; widget; send_paint } as w) =
     let pos = position w in
@@ -71,8 +71,8 @@ let rec iter_window f window =
   f window;
   List.iter (iter_window f) window.children
 
-let draw_desktop canvas = 
-  draw_window canvas desktop
+let draw () = 
+  draw_window desktop
 
 let window_path window =
   let bool_of_option = function Some _ -> true | None -> false  in

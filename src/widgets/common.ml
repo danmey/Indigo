@@ -6,12 +6,9 @@ end
 
 module MakeDefaultPainter(G : GRAPHICS) = struct
   type t
-  module Graphics = G
-  type gc = G.gc
-  let frame pos =
-    G.Draw.rectangle ~pos:(Rect.pos pos) ~size:(Rect.size pos)
-  let background col = G.Draw.background col
-  let foreground col = G.Draw.foreground col
+  let frame pos = ()
+  let background col = ()
+  let foreground col = ()
   let string pos str = ()
 end
 
