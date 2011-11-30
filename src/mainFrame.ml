@@ -93,17 +93,15 @@ let create () =
     let tool_vbox = GPack.vbox  ~packing:main_paned#add () in
 
   (* Create the drawing area *)
-    let area = GMisc.drawing_area ~width ~height ~packing:main_paned#add () in
-    let () = Canvas.create ~pane:main_paned in
-    let view = ObjectTree.create ~packing:tool_vbox#add ~canvas:area () in
+    let canvas = Canvas.create ~pane:main_paned in
+    let view = ObjectTree.create ~packing:tool_vbox#add () in
             
             (* let target_entry = { Gtk.target= "INTEGER"; Gtk.flags= []; Gtk.info=123 } in *)
             (* view#drag#source_set ~modi:[`BUTTON1] ~actions:[`COPY] [target_entry]; *)
             (* area#drag#dest_set ~flags:[`HIGHLIGHT;`MOTION] ~actions:[`COPY] [target_entry]; *)
             (* area#drag#connect#data_received ~callback:drag_data_received; *)
             (* area#drag#connect#drop ~callback:(drag_drop area view); *)
-            let user_list, receive = UserList.create ~packing:tool_vbox#add ~canvas:area () in
-
+            (* let user_list, receive = UserList.create ~packing:tool_vbox#add ~canvas:area () in *)
     let rec login_loop kick login_data () =
     (match login_data with
       | None -> return ()
@@ -121,13 +119,13 @@ let create () =
             let quit _ = send (Protocol.Server (Protocol.Quit uname)) in
             at_exit quit;
             Sys.catch_break true;
-            Listener.add_listener receive;
+            (* Listener.add_listener receive; *)
             ignore(window#show ());
         
-            update_display send area ();
+            (* update_display send area (); *)
             send (Protocol.Server (Protocol.RequestUserList));
         (* Main loop: *)
-            waiter)
+            waiter);
     in
     let login_data = Login.create () in
     login_loop false login_data ()

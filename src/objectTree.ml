@@ -44,7 +44,7 @@ let selected (view:GTree.view) =
         | "Dice" -> `Dice
         | "Board" -> `Board)
     | _ -> None
-let create ~packing ~(canvas:GMisc.drawing_area) () =
+let create ~packing () =
   let view = GTree.view ~packing () in
 
   (* Column #1 *)

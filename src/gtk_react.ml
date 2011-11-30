@@ -1,4 +1,4 @@
-  type 'a t = { window: GMisc.drawing_area; event: 'a }
+type 'a t = { window: GMisc.drawing_area; event: 'a }
 module type S = sig
   val exposed : GdkEvent.Expose.t t React.E.t
   val configured : GdkEvent.Configure.t t React.E.t
@@ -24,15 +24,15 @@ let create ~window =
     let send_release = w send_release
   end 
   in
+  i(window#event#add [`EXPOSURE; 
+                  `LEAVE_NOTIFY; 
+                  `BUTTON_PRESS; 
+                  `BUTTON_RELEASE; 
+                  `POINTER_MOTION; 
+                  `POINTER_MOTION_HINT]);
   i(window#event#connect#expose ~callback:E.send_expose);
   i(window#event#connect#configure ~callback:E.send_configure);
   i(window#event#connect#motion_notify ~callback:E.send_notify);
   i(window#event#connect#button_press ~callback:E.send_press);
   i(window#event#connect#button_release ~callback:E.send_release);
-  window#event#add [`EXPOSURE; 
-                  `LEAVE_NOTIFY; 
-                  `BUTTON_PRESS; 
-                  `BUTTON_RELEASE; 
-                  `POINTER_MOTION; 
-                  `POINTER_MOTION_HINT];
   (module E : S)
