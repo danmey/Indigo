@@ -37,5 +37,6 @@ let create ~pane =
     let exposed = React.E.map expose E.exposed
   end 
   in
-  canvas := Some (module E2 : S)
+  canvas := Some (module E2 : S);
+  (module E2 : S)
     
