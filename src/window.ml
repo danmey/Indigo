@@ -34,6 +34,8 @@ let add parent window =
 
 let messages = Queue.create () 
 
+let focused_window = ref None
+
 open Widgets
 let rec make_widget () =
   let module W = 
@@ -58,18 +60,30 @@ and find_window pos' =
   in
   List.rev (loop (desktop.pos) desktop)
 
+and client_pos window global_pos = 
+  Pos.sub global_pos (Rect.pos (abs_pos window))
+
+and abs_pos window =
+  let desktop = Lazy.force desktop in
+  let path = window_path window in
+  List.fold_left 
+    (fun rect w ->
+      let pos = position window in
+      Rect.place_in pos rect) desktop.pos path
+
 and widget widget rect =
   let open Widgets in
       let window = ref None in
       let module Event = struct
         let press = React.E.fmap (mouse_click window) C.pressed
         let release = React.E.fmap (mouse_click window) C.released
+        let motion = React.E.fmap (mouse_motion window) C.notified
         let paint, send_paint = React.E.create ()
         let time, set_time = React.S.create (Timestamp.get ())
       end in
       let module MakeW = (val widget : Widget_sig.Wrap.Make1)  in
       let module W = MakeW(Event) in
-      let message = React.E.map message W.message in
+      let message = React.E.map (message window) W.message in
       let window' = { pos = rect; 
         children = []; 
         set_time = Event.set_time;
@@ -88,6 +102,7 @@ and mouse_click window {Gtk_react.event} =
           match find_window (x,y) with
             | [] -> None
             | w :: xs when w == window -> 
+              focused_window := Some window;
               Some { EventInfo.Mouse.Press.mouse = 
                   { EventInfo.Mouse.pos = (x,y);
                     EventInfo.Mouse.button = EventInfo.Mouse.Left };
@@ -95,17 +110,45 @@ and mouse_click window {Gtk_react.event} =
             | _ -> None
         end
       | None -> None
-        
+  and mouse_motion window {Gtk_react.event} =
+    match !window, !focused_window with
+      | Some window, Some window' when window == window' ->
+        let x, y = GdkEvent.Motion.x event, GdkEvent.Motion.y event in
+        Some ((x,y), (client_pos window (x,y)))
+      | _ -> None
+    
 and resize (width, height) =
     let desktop = Lazy.force desktop in
     desktop.pos <- Rect.rect (0.,0.) (float width, float height);
     (width, height)
 
-and message = function
+and message window = function
   | Widget_sig.M.Nil -> ()
-  | a -> Queue.add a messages
+  | a ->
+    match !window with
+      | Some window ->
+          Queue.add (window, a) messages
+      | None -> ()
+
+and window_path window =
+  let desktop = Lazy.force desktop in
+  let bool_of_option = function Some _ -> true | None -> false  in
+  let rec find_loop path ({ children; } as window') =
+    if window' == window 
+    then Some path 
+    else
+      match children with
+        | [] -> None
+        | windows ->
+          try List.find bool_of_option
+            (List.map (fun w -> find_loop (w :: path) w) windows)
+          with _ -> None
+  in
+  match find_loop [] desktop with
+    | None -> []
+    | Some path -> List.rev path
         
-let position window = 
+and position window = 
   window.pos
 
 let with_scisor _ f = f ()
@@ -133,49 +176,23 @@ let draw () =
   let desktop = Lazy.force desktop in
   draw_window desktop
 
-let window_path window =
-  let desktop = Lazy.force desktop in
-  let bool_of_option = function Some _ -> true | None -> false  in
-  let rec find_loop path ({ children; } as window') =
-    if window' == window 
-    then Some path 
-    else
-      match children with
-        | [] -> None
-        | windows ->
-          try List.find bool_of_option
-            (List.map (fun w -> find_loop (w :: path) w) windows)
-          with _ -> None
-  in
-  match find_loop [] desktop with
-    | None -> []
-    | Some path -> List.rev path
-
-let abs_pos window =
-  let desktop = Lazy.force desktop in
-  let path = window_path window in
-  List.fold_left 
-    (fun rect w ->
-      let pos = position window in
-      Rect.place_in pos rect) desktop.pos path
-
-      
 
 let relative_pos window_relative window =
   let window_relative_pos = abs_pos window_relative in
   let window_pos = abs_pos window in
   Rect.subr window_relative_pos window_pos
 
-let client_pos window global_pos = 
-  Pos.sub global_pos (Rect.pos (abs_pos window))
 
 let iddle () =
   let desktop = Lazy.force desktop in
   let ts = Timestamp.get () in
   Queue.iter (function
-    | Widget_sig.M.PlaceWidget (w, pos) -> 
+    | _, Widget_sig.M.PlaceWidget (w, pos) -> 
       let w = widget w pos in
-      add desktop w) messages;
+      add desktop w
+  | window, Widget_sig.M.MoveWidget client_pos ->
+    match window_path window with
+      | window :: _ -> window.pos <- Rect.rect client_pos (Rect.size window.pos)) messages;
   Queue.clear messages;
 
   iter_window (fun ({ set_time } as w) -> set_time ts; draw_window w) desktop

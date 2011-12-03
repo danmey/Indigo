@@ -39,4 +39,8 @@ module Make(L : LAYOUT)(P : PAINTER)(E : EVENT) : S = struct
       | State.Dragging _ -> State.Normal
       | state -> state) State.initial E.release
 
+  let message = React.E.map 
+    (fun (pos, client_pos) ->
+      MoveWidget pos) E.motion
+
 end

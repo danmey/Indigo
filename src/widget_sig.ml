@@ -26,6 +26,7 @@ module type EVENT = sig
   val press : EventInfo.Mouse.Press.t React.E.t
   val release : EventInfo.Mouse.Press.t React.E.t
   val paint : (Cairo.t * Rect.t * Timestamp.t) React.E.t
+  val motion : (Pos.t * Pos.t) React.E.t
   val time : Timestamp.t React.S.t
 end
 
@@ -58,10 +59,12 @@ end = struct
 end and M : sig 
 type message =
   | PlaceWidget of (module Wrap.Make1) * Rect.t
+  | MoveWidget of Pos.t
   | Nil
 end = struct
 type message =
   | PlaceWidget of (module Wrap.Make1) * Rect.t
+  | MoveWidget of Pos.t
   | Nil
 end
 
