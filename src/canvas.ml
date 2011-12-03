@@ -54,6 +54,6 @@ let create ~pane =
       ()
   end 
   in
-  canvas := Some ((module E2 : CANVAS), E2.configured, E2.exposed);
+  canvas := Some (module E2 : CANVAS);
   (module E2 : CANVAS)
     

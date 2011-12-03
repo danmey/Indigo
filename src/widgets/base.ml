@@ -26,4 +26,5 @@ module Make(L : LAYOUT)(P : PAINTER)(E : EVENT) = struct
       (React.S.fold change_state State.initial Event.press)
 
   let paint f = React.S.sample f Event.paint state
+  let message = React.E.map (fun _ -> Nil) Event.press
 end

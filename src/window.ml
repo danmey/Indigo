@@ -24,30 +24,46 @@ type window = {
   set_time : Timestamp.t -> unit;
   resize: (int * int) React.E.t;
   send_paint : Cairo.t * Rect.t * Timestamp.t -> unit;
-  widget : (module Widget_sig.S)
+  widget : (module Widget_sig.Wrap.S);
+  message: unit React.E.t
 }
 
-let rec desktop = lazy (default (Rect.rect (0.,0.) (300.,300.)))
+let add parent window =
+  parent.children <-  parent.children @ [window];
+  ()
 
-and default rect =
+let messages = Queue.create () 
+
+open Widgets
+let rec make_widget () =
+  let module W = 
+        (Board.Make(Common.FreeLayout)
+           (Common.MakeDefaultPainter(G)) : Widget_sig.Wrap.Make1) in
+  (module W : Widget_sig.Wrap.Make1)
+
+and desktop = lazy begin
+  let module W = (val make_widget () : Widget_sig.Wrap.Make1) in
+  widget (module W : Widget_sig.Wrap.Make1) (Rect.rect (0.,0.) (300.,300.)) 
+end
+
+and widget widget rect =
   let open Widgets in
       let module Event = struct
         let press = React.E.map mouse_click C.pressed
         let release = React.E.map mouse_click C.released
         let paint, send_paint = React.E.create ()
         let time, set_time = React.S.create (Timestamp.get ())
-      end
-      in
-      let module W = 
-            (Board.Make(Common.FreeLayout)
-              (Common.MakeDefaultPainter(G))
-              (Event) : Widget_sig.S) in
+      end in
+      let module MakeW = (val widget : Widget_sig.Wrap.Make1)  in
+      let module W = MakeW(Event) in
+      let message = React.E.map message W.message in
       { pos = rect; 
         children = []; 
         set_time = Event.set_time;
         send_paint = Event.send_paint;
         resize = React.E.map resize C.resize;
-        widget = (module W : Widget_sig.S) }
+        message = message;
+        widget = (module W : Widget_sig.Wrap.S) }
 
 and mouse_click {Gtk_react.window; Gtk_react.event} =
   let x, y = GdkEvent.Button.x event, GdkEvent.Button.y event in
@@ -62,6 +78,12 @@ and resize (width, height) =
     desktop.pos <- Rect.rect (0.,0.) (float width, float height);
     (width, height)
 
+and message = function
+  | Widget_sig.M.Nil -> ()
+  | a -> 
+    print_endline "widget!";
+    Queue.add a messages
+        
 let position window = 
   window.pos
 
@@ -127,9 +149,6 @@ let find_window pos' =
   in
   List.rev (loop (position desktop) desktop)
       
-let add parent window =
-  parent.children <-  parent.children @ [window];
-  ()
 
 let relative_pos window_relative window =
   let window_relative_pos = abs_pos window_relative in
@@ -142,5 +161,11 @@ let client_pos window global_pos =
 let iddle () =
   let desktop = Lazy.force desktop in
   let ts = Timestamp.get () in
+  Queue.iter (function
+    | Widget_sig.M.PlaceWidget (w, pos) -> 
+      let w = widget w pos in
+      add desktop w) messages;
+  Queue.clear messages;
+
   iter_window (fun ({ set_time } as w) -> set_time ts; draw_window w) desktop
 end

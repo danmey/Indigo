@@ -1,3 +1,4 @@
+
 module type GRAPHICS = sig
   (* This will be abstracted later, after we know which features we need from Cairo
      possible port to js_of_ocaml *)
@@ -29,19 +30,45 @@ module type EVENT = sig
 end
 
 
-module type S = sig
-  module Layout : LAYOUT
-  module Painter : PAINTER
-  module Event : EVENT
-  module State : STATE
-  val pack : Layout.t -> Rect.t -> Rect.t
-  val paint : unit React.E.t
-  val state : State.t React.S.t
+
+module rec Wrap : sig
+  module type S = sig
+    module Layout : LAYOUT
+    module Painter : PAINTER
+    module Event : EVENT
+    module State : STATE
+    val pack : Layout.t -> Rect.t -> Rect.t
+    val paint : unit React.E.t
+    val state : State.t React.S.t
+    val message : M.message React.E.t
+  end 
+  module type Make1 = functor (E : EVENT) -> S
+end = struct
+  module type S = sig
+    module Layout : LAYOUT
+    module Painter : PAINTER
+    module Event : EVENT
+    module State : STATE
+    val pack : Layout.t -> Rect.t -> Rect.t
+    val paint : unit React.E.t
+    val state : State.t React.S.t
+    val message : M.message React.E.t
+  end
+  module type Make1 = functor (E : EVENT) -> S
+end and M : sig 
+type message =
+  | PlaceWidget of (module Wrap.Make1) * Rect.t
+  | Nil
+end = struct
+type message =
+  | PlaceWidget of (module Wrap.Make1) * Rect.t
+  | Nil
 end
+
+include Wrap
+include M
 
 module type MAKE =
   functor (Layout : LAYOUT) -> 
     functor (Painter : PAINTER) -> 
-        functor (Event : EVENT) -> S
-
-
+        functor (Event : EVENT) -> Wrap.S

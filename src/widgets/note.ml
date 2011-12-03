@@ -1,7 +1,7 @@
 open Common
 include Widget_sig
 module Make(L : LAYOUT)(P : PAINTER)(E : EVENT) : S = struct
-  include Base
+  include Base.Make(L)(P)(E)
   let draw_curved_rectangle cr ~x ~y ~width ~height =
     Cairo.save cr;
     Cairo.move_to cr ~x ~y:(y+.height /. 2.);
@@ -19,4 +19,16 @@ module Make(L : LAYOUT)(P : PAINTER)(E : EVENT) : S = struct
     Cairo.set_source cr pat;
     draw_curved_rectangle cr ~x ~y ~width ~height;
     Cairo.fill cr
+
+  let f (cairo, rect, ts) state =
+    print_endline "Painting!";
+    flush stdout;
+    let x,y,width,height = Rect.coords rect in
+    let red, green, blue = 0.3, 0.3, 0.3 in
+    Cairo.set_source_rgb cairo ~red ~green ~blue;
+    rectangle cairo ~pos:(x,y) ~size:(width,height);
+    Cairo.fill cairo
+
+  let paint = paint f
+
 end
