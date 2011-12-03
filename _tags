@@ -2,6 +2,7 @@
 
 <src>: include
 <src/widgets>: include
+<src/widgets/board.ml>: package(cairo)
 <src/{mainFrame,connection,server,indigo}.ml>: syntax(camlp4o), package(lwt.syntax), package(lwt), package(lwt.unix)
 <src/login{Data,}.ml>: package(pcre)
 <src/connection.ml>: package(bolt)
@@ -13,5 +14,5 @@
 <src/{widget,widget_sig,window}.*>: package(react)
 <src/widgets/*.*>: for-pack(Widgets),package(react)
 <src/cairoGraphics.ml>: package(lablgtk2), package(cairo.lablgtk2)
-<src/widget_sig.*>: package(cairo)
+<src/{widget_sig,window}.*>: package(cairo)
 <src/{canvas,gtk_react,window}.*>: package(react),package(lablgtk2)
