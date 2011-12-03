@@ -22,7 +22,6 @@ module type STATE = sig
 end
 
 module type EVENT = sig
-  val click : EventInfo.Mouse.Click.t React.E.t
   val press : EventInfo.Mouse.Press.t React.E.t
   val release : EventInfo.Mouse.Press.t React.E.t
   val paint : (Rect.t * Timestamp.t) React.E.t
