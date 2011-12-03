@@ -30,25 +30,6 @@ end
 
 module Connection = Connection.Make(Protocol)(Listener)
     
-(* Create a new backing pixmap of the appropriate size *)
-let configure window ev =
-  let width = GdkEvent.Configure.width ev in
-  let height = GdkEvent.Configure.height ev in
-  let pixmap = GDraw.pixmap ~width ~height ~window () in
-  pixmap#set_foreground `BLACK;
-  pixmap#rectangle ~x:0 ~y:0 ~width ~height ~filled:true ();
-  Window.draw ();
-  true
-
-
-
-let button_pressed send area ev =
-  let x, y = (int_of_float (GdkEvent.Button.x ev)), (int_of_float (GdkEvent.Button.y ev)) in
-  Window.button_pressed (x,y);
-  true
-
-let button_release send area ev =
-  true
 
 let motion_notify send area ev =
   let (x, y) =
