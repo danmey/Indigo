@@ -46,43 +46,64 @@ and desktop = lazy begin
   widget (module W : Widget_sig.Wrap.Make1) (Rect.rect (0.,0.) (300.,300.)) 
 end
 
+and find_window pos' =
+  let desktop = Lazy.force desktop in
+  let rec loop rect window =
+    let pos = window.pos in
+    let rect = Rect.place_in pos rect in
+    (if Rect.is_in rect pos' then
+        window :: List.concat (List.map (loop rect) window.children)
+     else 
+        [])
+  in
+  List.rev (loop (desktop.pos) desktop)
+
 and widget widget rect =
   let open Widgets in
+      let window = ref None in
       let module Event = struct
-        let press = React.E.map mouse_click C.pressed
-        let release = React.E.map mouse_click C.released
+        let press = React.E.fmap (mouse_click window) C.pressed
+        let release = React.E.fmap (mouse_click window) C.released
         let paint, send_paint = React.E.create ()
         let time, set_time = React.S.create (Timestamp.get ())
       end in
       let module MakeW = (val widget : Widget_sig.Wrap.Make1)  in
       let module W = MakeW(Event) in
       let message = React.E.map message W.message in
-      { pos = rect; 
+      let window' = { pos = rect; 
         children = []; 
         set_time = Event.set_time;
         send_paint = Event.send_paint;
         resize = React.E.map resize C.resize;
         message = message;
-        widget = (module W : Widget_sig.Wrap.S) }
+        widget = (module W : Widget_sig.Wrap.S) } in
+      window := Some window';
+      window'
 
-and mouse_click {Gtk_react.window; Gtk_react.event} =
-  let x, y = GdkEvent.Button.x event, GdkEvent.Button.y event in
-  { EventInfo.Mouse.Press.mouse = 
-      { EventInfo.Mouse.pos = (x,y);
-        EventInfo.Mouse.button = EventInfo.Mouse.Left };
-    time_stamp = Timestamp.get () }
-
+and mouse_click window {Gtk_react.event} =
+    match !window with
+      | Some window ->
+        begin
+        let x, y = GdkEvent.Button.x event, GdkEvent.Button.y event in
+          match find_window (x,y) with
+            | [] -> None
+            | w :: xs when w == window -> 
+              Some { EventInfo.Mouse.Press.mouse = 
+                  { EventInfo.Mouse.pos = (x,y);
+                    EventInfo.Mouse.button = EventInfo.Mouse.Left };
+                     time_stamp = Timestamp.get () }
+            | _ -> None
+        end
+      | None -> None
+        
 and resize (width, height) =
     let desktop = Lazy.force desktop in
-    Printf.printf "resize %s" (Rect.to_string desktop.pos);
     desktop.pos <- Rect.rect (0.,0.) (float width, float height);
     (width, height)
 
 and message = function
   | Widget_sig.M.Nil -> ()
-  | a -> 
-    print_endline "widget!";
-    Queue.add a messages
+  | a -> Queue.add a messages
         
 let position window = 
   window.pos
@@ -138,17 +159,6 @@ let abs_pos window =
       let pos = position window in
       Rect.place_in pos rect) desktop.pos path
 
-let find_window pos' =
-  let desktop = Lazy.force desktop in
-  let rec loop rect window =
-    let pos = position window in
-    let rect = Rect.place_in pos rect in
-    (if Rect.is_in rect pos' then
-        window :: List.concat (List.map (loop rect) window.children)
-     else 
-        [])
-  in
-  List.rev (loop (position desktop) desktop)
       
 
 let relative_pos window_relative window =

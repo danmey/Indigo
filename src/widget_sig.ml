@@ -18,7 +18,7 @@ module type PAINTER = sig
 end
 
 module type STATE = sig
-  type t = Normal | Pressed | Start of Timestamp.t
+  type t = Normal | Pressed | Start of Timestamp.t | Dragging of Rect.t
   val initial : t
 end
 

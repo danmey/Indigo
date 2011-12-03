@@ -21,8 +21,6 @@ module Make(L : LAYOUT)(P : PAINTER)(E : EVENT) : S = struct
     Cairo.fill cr
 
   let f (cairo, rect, ts) state =
-    print_endline "Painting!";
-    flush stdout;
     let x,y,width,height = Rect.coords rect in
     let red, green, blue = 0.3, 0.3, 0.3 in
     Cairo.set_source_rgb cairo ~red ~green ~blue;
@@ -30,5 +28,15 @@ module Make(L : LAYOUT)(P : PAINTER)(E : EVENT) : S = struct
     Cairo.fill cairo
 
   let paint = paint f
+    
+  let press = React.E.fold (fun state _ ->
+    match state with
+      | State.Dragging _ -> State.Normal
+      | state -> state) State.initial E.release
+
+  let release = React.E.fold (fun state _ ->
+    match state with
+      | State.Dragging _ -> State.Normal
+      | state -> state) State.initial E.release
 
 end

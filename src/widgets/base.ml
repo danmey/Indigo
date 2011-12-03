@@ -3,7 +3,7 @@ include Widget_sig
 module Make(L : LAYOUT)(P : PAINTER)(E : EVENT) = struct
   module Layout = L
   module Painter = P
-  module State = State (struct end)
+  module State = State (struct  end)
   module Event = E
 
   let pack gc rect = rect

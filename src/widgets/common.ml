@@ -13,6 +13,6 @@ module MakeDefaultPainter(G : GRAPHICS) = struct
 end
 
 module State(Dummy : sig end) = struct
-  type t = Normal | Pressed | Start of Timestamp.t
+  type t = Normal | Pressed | Start of Timestamp.t | Dragging of Rect.t
   let initial = Start (Timestamp.get ())
 end
