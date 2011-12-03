@@ -29,8 +29,7 @@ type window = {
 }
 
 let add parent window =
-  parent.children <-  parent.children @ [window];
-  ()
+  parent.children <-  parent.children @ [window]
 
 let messages = Queue.create () 
 
@@ -75,8 +74,8 @@ and widget widget rect =
   let open Widgets in
       let window = ref None in
       let module Event = struct
-        let press = React.E.fmap (mouse_click window) C.pressed
-        let release = React.E.fmap (mouse_click window) C.released
+        let press = React.E.fmap (mouse_press window) C.pressed
+        let release = React.E.fmap (mouse_release window) C.released
         let motion = React.E.fmap (mouse_motion window) C.notified
         let paint, send_paint = React.E.create ()
         let time, set_time = React.S.create (Timestamp.get ())
@@ -94,7 +93,7 @@ and widget widget rect =
       window := Some window';
       window'
 
-and mouse_click window {Gtk_react.event} =
+and mouse_press window {Gtk_react.event} =
     match !window with
       | Some window ->
         begin
@@ -110,11 +109,20 @@ and mouse_click window {Gtk_react.event} =
             | _ -> None
         end
       | None -> None
-  and mouse_motion window {Gtk_react.event} =
+and mouse_motion window {Gtk_react.event} =
     match !window, !focused_window with
       | Some window, Some window' when window == window' ->
         let x, y = GdkEvent.Motion.x event, GdkEvent.Motion.y event in
         Some ((x,y), (client_pos window (x,y)))
+      | _ -> None
+and mouse_release window {Gtk_react.event} =
+    match !window, !focused_window with
+      | Some window, Some window' when window == window' ->
+        let x, y = GdkEvent.Button.x event, GdkEvent.Button.y event in
+        Some { EventInfo.Mouse.Press.mouse = 
+            { EventInfo.Mouse.pos = (x,y);
+              EventInfo.Mouse.button = EventInfo.Mouse.Left };
+               time_stamp = Timestamp.get () }
       | _ -> None
     
 and resize (width, height) =

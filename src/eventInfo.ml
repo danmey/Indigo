@@ -6,3 +6,4 @@ module Mouse = struct
     type t = { mouse : mouse; time_stamp:Timestamp.t }
   end
 end
+

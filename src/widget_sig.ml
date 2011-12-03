@@ -18,7 +18,7 @@ module type PAINTER = sig
 end
 
 module type STATE = sig
-  type t = Normal | Pressed | Start of Timestamp.t | Dragging of Rect.t
+  type t = Normal | Pressed | Start of Timestamp.t | Dragging of Pos.t
   val initial : t
 end
 
@@ -29,8 +29,6 @@ module type EVENT = sig
   val motion : (Pos.t * Pos.t) React.E.t
   val time : Timestamp.t React.S.t
 end
-
-
 
 module rec Wrap : sig
   module type S = sig

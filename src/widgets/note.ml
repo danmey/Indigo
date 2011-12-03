@@ -36,11 +36,28 @@ module Make(L : LAYOUT)(P : PAINTER)(E : EVENT) : S = struct
 
   let release = React.E.fold (fun state _ ->
     match state with
-      | State.Dragging _ -> State.Normal
-      | state -> state) State.initial E.release
+      | _ -> State.Dragging (0.,0.)) State.initial E.press
 
-  let message = React.E.map 
-    (fun (pos, client_pos) ->
-      MoveWidget pos) E.motion
+  let state =
+    let with_pos b { EventInfo.Mouse.Press.mouse = { EventInfo.Mouse.pos } } =
+      b, pos in
+    React.S.fold (fun state pressed ->
+      match state,pressed with
+        | _,(true,pos) -> State.Dragging pos
+        | _,(false,_) -> State.Normal
+        | state,_ -> state) State.initial
+      (React.E.select 
+         [React.E.map (with_pos true) E.press;
+          React.E.map (with_pos false)  E.release])
+
+  let message =
+    React.E.map 
+      (fun (pos, client_pos) ->
+        MoveWidget pos) 
+      (React.E.when_ 
+         (React.S.map 
+            (function 
+              | State.Dragging _ -> true
+              | _ -> false) state) E.motion)
 
 end
