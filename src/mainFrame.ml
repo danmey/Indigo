@@ -20,7 +20,6 @@ open Lwt
 open Lwt_chan
 open Lwt_unix
 
-module Window = Window.Make(CairoGraphics)(struct let size () = 500,500 end)
 
 module Listener = struct
   let listeners = ref []
@@ -50,10 +49,13 @@ let drag_drop
   let a = src_widget#drag#get_data ~target:"INTEGER"  ~time context in
   true
         
-
-let rec update_display send (area:GMisc.drawing_area) () =
+module type Sig = sig
+  val iddle : unit -> unit
+end
+let rec update_display send window () =
+  let module Window = (val window : Sig) in
   Window.iddle ();
-  Lwt.bind (Lwt_unix.sleep 0.01) (update_display send area)
+  Lwt.bind (Lwt_unix.sleep 0.01) (update_display send window)
 
 let create () =
   lwt a =
@@ -65,7 +67,7 @@ let create () =
     let width = 200 in
     let height = 200 in
     let window = GWindow.window ~title:"Indigo" () in
-
+    
     let _ = window#connect#destroy ~callback:(fun () -> wakeup wakener ()) in
   
   (* Create a basic tool layout *)
@@ -74,7 +76,13 @@ let create () =
     let tool_vbox = GPack.vbox  ~packing:main_paned#add () in
 
   (* Create the drawing area *)
-    let canvas = Canvas.create ~pane:main_paned in
+    let module Canvas = (val Canvas.create ~pane:main_paned : Gtk_react.S) in
+    let module Window = 
+          Window.Make
+            (CairoGraphics)
+            (Canvas)
+            (struct let size () = 500.,500. end) in
+    
     let view = ObjectTree.create ~packing:tool_vbox#add () in
             
             (* let target_entry = { Gtk.target= "INTEGER"; Gtk.flags= []; Gtk.info=123 } in *)
