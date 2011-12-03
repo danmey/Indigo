@@ -16,41 +16,47 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
   --------------------------------------------------------------------------*)
 
-module Make(G : Widget_sig.GRAPHICS)(Desktop : sig val size : unit -> (int * int) end) = struct
+module Make(G : Widget_sig.GRAPHICS)(C : Gtk_react.S)(Desktop : sig val size : unit -> (float * float) end) = struct
 
 type window = {
   mutable pos : Rect.t;
   mutable children : window list;
-  send_click : EventInfo.Mouse.Click.t -> unit;
+  set_time : Timestamp.t -> unit;
   send_paint : Rect.t * Timestamp.t -> unit;
-  send_time : Timestamp.t -> unit;
-  (* painter : G.gc -> Rect.t -> unit *)
   widget : (module Widget_sig.S)
 }
 
-let default rect =
-  let module Event =
-      struct 
-        let click, send_click = React.E.create () 
-        let paint, send_paint = React.E.create () 
-        let press, send_ = React.E.create () 
-        let time, send_time = React.S.create (Timestamp.get ()) 
-        let release, send_ = React.E.create () 
-      end
-  in
-  let open Widgets in
-  { pos = rect; 
-    children = []; 
-    send_click = Event.send_click;
-    send_paint = Event.send_paint;
-    send_time = Event.send_time;
-    widget = (module Board.Make(Common.FreeLayout)(Common.MakeDefaultPainter(G))(Event) : Widget_sig.S) }
+let mouse_click {Gtk_react.window; Gtk_react.event} =
+  let x, y = GdkEvent.Button.x event, GdkEvent.Button.y event in
+  { EventInfo.Mouse.Press.mouse = 
+      { EventInfo.Mouse.pos = (x,y);
+        EventInfo.Mouse.button = EventInfo.Mouse.Left };
+    time_stamp = Timestamp.get () }
 
-let desktop = default (Rect.rect (0,0) (300,300))
+let default rect =
+  let open Widgets in
+      let module Event = struct
+        let press = React.E.map mouse_click C.pressed
+        let release = React.E.map mouse_click C.released
+        let paint, send_paint = React.E.create ()
+        let time, set_time = React.S.create (Timestamp.get ())
+      end
+      in
+      let module W = 
+            (Board.Make(Common.FreeLayout)
+              (Common.MakeDefaultPainter(G))
+              (Event) : Widget_sig.S) in
+      { pos = rect; 
+        children = []; 
+        set_time = Event.set_time;
+        send_paint = Event.send_paint;
+        widget = (module W : Widget_sig.S) }
+
+let desktop = default (Rect.rect (0.,0.) (300.,300.))
 
 let position window = 
   if window == desktop then 
-    Rect.rect (0,0) (Desktop.size())
+    Rect.rect (0.,0.) (Desktop.size())
   else window.pos
 
 (* let desktop_rect () = Rect.rect (0,0) (Display.display_size ()) *)
@@ -125,18 +131,7 @@ let relative_pos window_relative window =
 let client_pos window global_pos = 
   Pos.sub global_pos (Rect.pos (abs_pos window))
 
-let button_pressed pos =
-  match find_window pos with
-    | { send_click } :: _ ->
-      send_click {
-        EventInfo.Mouse.Click.time_stamp = Timestamp.get ();
-        EventInfo.Mouse.Click.mouse = 
-          { EventInfo.Mouse.pos; 
-            EventInfo.Mouse.button = EventInfo.Mouse.Left 
-          } }
-    | [] -> ()
-
 let iddle () =
   let ts = Timestamp.get () in
-  iter_window (fun ({ send_time } as w) -> send_time ts) desktop
+  iter_window (fun ({ set_time } as w) -> set_time ts) desktop
 end
