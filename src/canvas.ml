@@ -4,6 +4,7 @@ module type CANVAS = sig
   include S
   val pixmap : GDraw.pixmap ref
   val update : unit -> unit
+  val resize : (int * int) React.E.t
 end 
 
 let canvas = ref None
@@ -21,7 +22,7 @@ let create ~pane =
       pixmap := GDraw.pixmap ~width ~height ~window ();
       !pixmap#set_foreground `WHITE;
       !pixmap#rectangle ~x:0 ~y:0 ~width ~height ~filled:true ();
-      a
+      (width, height)
 
     (* Redraw the screen from the backing pixmap *)
     let expose ({ window; event } as a) =
@@ -34,18 +35,23 @@ let create ~pane =
         window#misc#realize ();
         new GDraw.drawable (window#misc#window)
       in
-      print_endline "expose";
+      pixmap := GDraw.pixmap ~width ~height ~window ();
+      !pixmap#set_foreground `WHITE;
+      !pixmap#rectangle ~x:0 ~y:0 ~width ~height ~filled:true ();
       drawing#put_pixmap ~x ~y ~xsrc:x ~ysrc:y ~width ~height !pixmap#pixmap;
-      a
+      (width, height)
 
-    let configured = React.E.map configure E.configured
-    let exposed = React.E.map expose E.exposed
+    let c = React.E.map configure E.configured
+    let e = React.E.map expose E.exposed
+    let resize = React.E.select [e; c]
     let update () =
-      let x,y,width,height = 0,0,200,200 in
       let drawing =
         window#misc#realize ();
         new GDraw.drawable (window#misc#window) in
-      drawing#put_pixmap ~x ~y ~xsrc:x ~ysrc:y ~width ~height !pixmap#pixmap
+      let x,y = 0,0 in
+      let width, height = Gdk.Drawable.get_size !pixmap#pixmap in
+      drawing#put_pixmap ~x ~y ~xsrc:x ~ysrc:y ~width ~height !pixmap#pixmap;
+      ()
   end 
   in
   canvas := Some ((module E2 : CANVAS), E2.configured, E2.exposed);
