@@ -98,10 +98,11 @@ let rec draw_window window =
     with_scisor rect (fun () ->
       let cr = Cairo_lablgtk.create (!C.pixmap#pixmap) in
       send_paint (cr, client_rect, ts);
-      C.update();
       List.iter (draw_client_window (Rect.together rect client_rect)) children)
   in
-  draw_client_window (position desktop) window
+  draw_client_window (position desktop) window;
+  C.update()
+
 
 let rec iter_window f window =
   f window;
