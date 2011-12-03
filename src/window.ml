@@ -22,18 +22,14 @@ type window = {
   mutable pos : Rect.t;
   mutable children : window list;
   set_time : Timestamp.t -> unit;
+  resize: (int * int) React.E.t;
   send_paint : Cairo.t * Rect.t * Timestamp.t -> unit;
   widget : (module Widget_sig.S)
 }
 
-let mouse_click {Gtk_react.window; Gtk_react.event} =
-  let x, y = GdkEvent.Button.x event, GdkEvent.Button.y event in
-  { EventInfo.Mouse.Press.mouse = 
-      { EventInfo.Mouse.pos = (x,y);
-        EventInfo.Mouse.button = EventInfo.Mouse.Left };
-    time_stamp = Timestamp.get () }
+let rec desktop = lazy (default (Rect.rect (0.,0.) (300.,300.)))
 
-let default rect =
+and default rect =
   let open Widgets in
       let module Event = struct
         let press = React.E.map mouse_click C.pressed
@@ -50,26 +46,36 @@ let default rect =
         children = []; 
         set_time = Event.set_time;
         send_paint = Event.send_paint;
+        resize = React.E.map resize C.resize;
         widget = (module W : Widget_sig.S) }
 
-let desktop = default (Rect.rect (0.,0.) (300.,300.))
+and mouse_click {Gtk_react.window; Gtk_react.event} =
+  let x, y = GdkEvent.Button.x event, GdkEvent.Button.y event in
+  { EventInfo.Mouse.Press.mouse = 
+      { EventInfo.Mouse.pos = (x,y);
+        EventInfo.Mouse.button = EventInfo.Mouse.Left };
+    time_stamp = Timestamp.get () }
+
+and resize (width, height) =
+    let desktop = Lazy.force desktop in
+    Printf.printf "resize %s" (Rect.to_string desktop.pos);
+    desktop.pos <- Rect.rect (0.,0.) (float width, float height);
+    (width, height)
 
 let position window = 
-  if window == desktop then 
-    Rect.rect (0.,0.) (Desktop.size())
-  else window.pos
+  window.pos
 
-(* let desktop_rect () = Rect.rect (0,0) (Display.display_size ()) *)
 let with_scisor _ f = f ()
 
 let rec draw_window window =
+  let desktop = Lazy.force desktop in
   let ts = Timestamp.get () in
   let rec draw_client_window rect ({ children; widget; send_paint } as w) =
     let pos = position w in
     let client_rect = Rect.place_in pos rect in
     with_scisor rect (fun () ->
       let cr = Cairo_lablgtk.create (!C.pixmap#pixmap) in
-      send_paint (cr, client_rect,ts);
+      send_paint (cr, client_rect, ts);
       C.update();
       List.iter (draw_client_window (Rect.together rect client_rect)) children)
   in
@@ -80,9 +86,11 @@ let rec iter_window f window =
   List.iter (iter_window f) window.children
 
 let draw () = 
+  let desktop = Lazy.force desktop in
   draw_window desktop
 
 let window_path window =
+  let desktop = Lazy.force desktop in
   let bool_of_option = function Some _ -> true | None -> false  in
   let rec find_loop path ({ children; } as window') =
     if window' == window 
@@ -100,6 +108,7 @@ let window_path window =
     | Some path -> List.rev path
 
 let abs_pos window =
+  let desktop = Lazy.force desktop in
   let path = window_path window in
   List.fold_left 
     (fun rect w ->
@@ -107,6 +116,7 @@ let abs_pos window =
       Rect.place_in pos rect) desktop.pos path
 
 let find_window pos' =
+  let desktop = Lazy.force desktop in
   let rec loop rect window =
     let pos = position window in
     let rect = Rect.place_in pos rect in
@@ -121,10 +131,6 @@ let add parent window =
   parent.children <-  parent.children @ [window];
   ()
 
-(* let remove parent window = *)
-(*   parent.children <- BatList.remove_if ((==) window) parent.children; *)
-(*   () *)
-
 let relative_pos window_relative window =
   let window_relative_pos = abs_pos window_relative in
   let window_pos = abs_pos window in
@@ -134,6 +140,7 @@ let client_pos window global_pos =
   Pos.sub global_pos (Rect.pos (abs_pos window))
 
 let iddle () =
+  let desktop = Lazy.force desktop in
   let ts = Timestamp.get () in
   iter_window (fun ({ set_time } as w) -> set_time ts; draw_window w) desktop
 end
