@@ -52,10 +52,10 @@ let drag_drop
 module type Sig = sig
   val iddle : unit -> unit
 end
-let rec update_display send window () =
+let rec update_display window () =
   let module Window = (val window : Sig) in
   Window.iddle ();
-  Lwt.bind (Lwt_unix.sleep 0.01) (update_display send window)
+  Lwt.bind (Lwt_unix.sleep 0.01) (update_display window)
 
 let create () =
   lwt a =
@@ -76,7 +76,7 @@ let create () =
     let tool_vbox = GPack.vbox  ~packing:main_paned#add () in
 
   (* Create the drawing area *)
-    let module Canvas = (val Canvas.create ~pane:main_paned : Gtk_react.S) in
+    let module Canvas = (val Canvas.create ~pane:main_paned : Canvas.CANVAS) in
     let module Window = 
           Window.Make
             (CairoGraphics)
@@ -111,7 +111,7 @@ let create () =
             (* Listener.add_listener receive; *)
             ignore(window#show ());
         
-            (* update_display send area (); *)
+            update_display (module Window : Sig) ();
             send (Protocol.Server (Protocol.RequestUserList));
         (* Main loop: *)
             waiter);

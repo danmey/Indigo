@@ -16,13 +16,13 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
   --------------------------------------------------------------------------*)
 
-module Make(G : Widget_sig.GRAPHICS)(C : Gtk_react.S)(Desktop : sig val size : unit -> (float * float) end) = struct
+module Make(G : Widget_sig.GRAPHICS)(C : Canvas.CANVAS)(Desktop : sig val size : unit -> (float * float) end) = struct
 
 type window = {
   mutable pos : Rect.t;
   mutable children : window list;
   set_time : Timestamp.t -> unit;
-  send_paint : Rect.t * Timestamp.t -> unit;
+  send_paint : Cairo.t * Rect.t * Timestamp.t -> unit;
   widget : (module Widget_sig.S)
 }
 
@@ -68,7 +68,9 @@ let rec draw_window window =
     let pos = position w in
     let client_rect = Rect.place_in pos rect in
     with_scisor rect (fun () ->
-      send_paint (client_rect,ts);
+      let cr = Cairo_lablgtk.create (!C.pixmap#pixmap) in
+      send_paint (cr, client_rect,ts);
+      C.update();
       List.iter (draw_client_window (Rect.together rect client_rect)) children)
   in
   draw_client_window (position desktop) window
@@ -133,5 +135,5 @@ let client_pos window global_pos =
 
 let iddle () =
   let ts = Timestamp.get () in
-  iter_window (fun ({ set_time } as w) -> set_time ts) desktop
+  iter_window (fun ({ set_time } as w) -> set_time ts; draw_window w) desktop
 end

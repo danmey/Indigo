@@ -24,7 +24,7 @@ end
 module type EVENT = sig
   val press : EventInfo.Mouse.Press.t React.E.t
   val release : EventInfo.Mouse.Press.t React.E.t
-  val paint : (Rect.t * Timestamp.t) React.E.t
+  val paint : (Cairo.t * Rect.t * Timestamp.t) React.E.t
   val time : Timestamp.t React.S.t
 end
 
