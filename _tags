@@ -14,4 +14,4 @@
 <src/widgets/*.*>: for-pack(Widgets),package(react)
 <src/cairoGraphics.ml>: package(lablgtk2), package(cairo.lablgtk2)
 <src/widget_sig.*>: package(cairo)
-<src/{canvas,gtk_react}.*>: package(react),package(lablgtk2)
+<src/{canvas,gtk_react,window}.*>: package(react),package(lablgtk2)
