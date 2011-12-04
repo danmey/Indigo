@@ -102,10 +102,12 @@ and mouse_press window {Gtk_react.event} =
             | [] -> None
             | w :: xs when w == window -> 
               focused_window := Some window;
-              Some { EventInfo.Mouse.Press.mouse = 
-                  { EventInfo.Mouse.pos = (x,y);
-                    EventInfo.Mouse.button = EventInfo.Mouse.Left };
-                     time_stamp = Timestamp.get () }
+              let pos = client_pos window (x,y) in
+              Some 
+                { EventInfo.Mouse.Press.mouse = 
+                    { EventInfo.Mouse.pos;
+                      EventInfo.Mouse.button = EventInfo.Mouse.Left };
+                  time_stamp = Timestamp.get () }
             | _ -> None
         end
       | None -> None

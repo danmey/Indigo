@@ -29,14 +29,6 @@ module Make(L : LAYOUT)(P : PAINTER)(E : EVENT) : S = struct
 
   let paint = paint f
     
-  let press = React.E.fold (fun state _ ->
-    match state with
-      | State.Dragging _ -> State.Normal
-      | state -> state) State.initial E.release
-
-  let release = React.E.fold (fun state _ ->
-    match state with
-      | _ -> State.Dragging (0.,0.)) State.initial E.press
 
   let state =
     let with_pos b { EventInfo.Mouse.Press.mouse = { EventInfo.Mouse.pos } } =
@@ -51,13 +43,10 @@ module Make(L : LAYOUT)(P : PAINTER)(E : EVENT) : S = struct
           React.E.map (with_pos false)  E.release])
 
   let message =
-    React.E.map 
-      (fun (pos, client_pos) ->
-        MoveWidget pos) 
-      (React.E.when_ 
-         (React.S.map 
-            (function 
-              | State.Dragging _ -> true
-              | _ -> false) state) E.motion)
+    React.E.fmap (fun x -> x)
+      (React.S.sample
+      (fun (global_pos,pos) -> function
+        | State.Dragging pos' -> Some (MoveWidget (Pos.sub global_pos pos'))
+        | a -> None) E.motion state)
 
 end
