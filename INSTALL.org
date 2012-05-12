@@ -4,5 +4,6 @@
 - lwt
 - react
 - yojson
+- bolt
 * Building
  ~ocamlbuild -use-ocamlfind indigo.otarget~

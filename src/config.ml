@@ -31,8 +31,8 @@ module Client = struct
   let default_host = "danmey.org"
   let default_uname = "wojtek"
   let default_port = 1234
-  let default_pass = "main" 
-    
+  let default_pass = "main"
+
   let read () =
       let default_config = 
 	{ LoginData.host = default_host;
