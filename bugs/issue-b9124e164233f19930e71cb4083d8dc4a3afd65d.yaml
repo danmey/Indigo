@@ -1,0 +1,20 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Not_found exception thrown when indigo is first started
+desc: |-
+  To get a backtrace OCAMLRUNPARAM=b ./indigo.byte
+  Also, -g flag needs to be specified in the make file.
+type: :bugfix
+component: Indigo
+release: 
+reporter: Wojciech Meyer <wojciech.meyer@gmail.com>
+status: :unstarted
+disposition: 
+creation_time: 2012-12-03 20:50:47.433371 Z
+references: []
+
+id: b9124e164233f19930e71cb4083d8dc4a3afd65d
+log_events: 
+- - 2012-12-03 20:50:49.837325 Z
+  - Wojciech Meyer <wojciech.meyer@gmail.com>
+  - created
+  - ""
