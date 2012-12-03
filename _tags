@@ -3,17 +3,17 @@
 true:debug
 <src>: include
 <src/widgets>: include
-<src/widgets/{board,note}.ml>: package(cairo)
+<src/widgets/{board,note}.ml>: package(cairo2)
 <src/{mainFrame,connection,server,indigo}.ml>: syntax(camlp4o), package(lwt.syntax), package(lwt), package(lwt.unix)
 <src/login{Data,}.ml>: package(pcre)
 <src/connection.ml>: package(bolt)
 <src/config.ml>: package(yojson)
 <src/protocol.ml>: syntax(camlp4o), package(bolt), package(lwt),package(lwt.syntax)
-<src/{login,objectTree,userList,mainFrame}.ml>: package(lablgtk2), package(cairo.lablgtk2)
-<src/indigo.{byte,native}>: package(lwt), package(lwt.unix), package(lwt.glib), package(lablgtk2), package(pcre), package(bolt), package(yojson), package(react), package(cairo.lablgtk2)
-<src/server.{byte,native}>: package(lwt), package(lwt.unix), package(pcre), package(bolt), package(yojson),package(react), package(cairo), package(cairo.lablgtk2)
+<src/{login,objectTree,userList,mainFrame}.ml>: package(lablgtk2), package(cairo2.lablgtk2)
+<src/indigo.{byte,native}>: package(lwt), package(lwt.unix), package(lwt.glib), package(lablgtk2), package(pcre), package(bolt), package(yojson), package(react), package(cairo2.lablgtk2)
+<src/server.{byte,native}>: package(lwt), package(lwt.unix), package(pcre), package(bolt), package(yojson),package(react), package(cairo2), package(cairo2.lablgtk2)
 <src/{widget,widget_sig,window}.*>: package(react)
 <src/widgets/*.*>: for-pack(Widgets),package(react)
-<src/cairoGraphics.ml>: package(lablgtk2), package(cairo.lablgtk2)
-<src/{widget_sig,window}.*>: package(cairo)
+<src/cairo2Graphics.ml>: package(lablgtk2), package(cairo2.lablgtk2)
+<src/{widget_sig,window}.*>: package(cairo2)
 <src/{canvas,gtk_react,window}.*>: package(react),package(lablgtk2)

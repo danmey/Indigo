@@ -25,7 +25,7 @@ end
 module type EVENT = sig
   val press : EventInfo.Mouse.Press.t React.E.t
   val release : EventInfo.Mouse.Press.t React.E.t
-  val paint : (Cairo.t * Rect.t * Timestamp.t) React.E.t
+  val paint : (Cairo.context * Rect.t * Timestamp.t) React.E.t
   val motion : (Pos.t * Pos.t) React.E.t
   val time : Timestamp.t React.S.t
 end
@@ -40,7 +40,7 @@ module rec Wrap : sig
     val paint : unit React.E.t
     val state : State.t React.S.t
     val message : M.message React.E.t
-  end 
+  end
   module type Make1 = functor (E : EVENT) -> S
 end = struct
   module type S = sig
@@ -54,7 +54,7 @@ end = struct
     val message : M.message React.E.t
   end
   module type Make1 = functor (E : EVENT) -> S
-end and M : sig 
+end and M : sig
 type message =
   | PlaceWidget of (module Wrap.Make1) * Rect.t
   | MoveWidget of Pos.t
@@ -70,6 +70,6 @@ include Wrap
 include M
 
 module type MAKE =
-  functor (Layout : LAYOUT) -> 
-    functor (Painter : PAINTER) -> 
+  functor (Layout : LAYOUT) ->
+    functor (Painter : PAINTER) ->
         functor (Event : EVENT) -> Wrap.S

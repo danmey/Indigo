@@ -1,6 +1,6 @@
 (*----------------------------------------------------------------------------
   mainFrame.ml - Main window of INDIGO client.
-  Copyright (C) 2011 Wojciech Meyer 
+  Copyright (C) 2011 Wojciech Meyer
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ module Listener = struct
 end
 
 module Connection = Connection.Make(Protocol)(Listener)
-    
+
 
 let motion_notify send area ev =
   let (x, y) =
@@ -42,13 +42,13 @@ let motion_notify send area ev =
 let drag_data_received context ~x ~y data ~info ~time =
     context # finish ~success:true ~del:true ~time
 
-let drag_drop 
-    (area : GMisc.drawing_area) 
-    (src_widget : GTree.view) 
+let drag_drop
+    (area : GMisc.drawing_area)
+    (src_widget : GTree.view)
     (context : GObj.drag_context) ~x ~y ~time =
   let a = src_widget#drag#get_data ~target:"INTEGER"  ~time context in
   true
-        
+
 module type Sig = sig
   val iddle : unit -> unit
 end
@@ -61,15 +61,15 @@ let create () =
   lwt a =
     ignore (GMain.init ());
 
-    Lwt_glib.install  (); 
-    
+    Lwt_glib.install  ();
+
     let waiter, wakener = Lwt.wait () in
     let width = 200 in
     let height = 200 in
     let window = GWindow.window ~title:"Indigo" () in
-    
+
     let _ = window#connect#destroy ~callback:(fun () -> wakeup wakener ()) in
-  
+
   (* Create a basic tool layout *)
     let main_paned = GPack.paned `HORIZONTAL ~packing:window#add () in
 
@@ -77,14 +77,14 @@ let create () =
 
   (* Create the drawing area *)
     let module Canvas = (val Canvas.create ~pane:main_paned : Canvas.CANVAS) in
-    let module Window = 
+    let module Window =
           Window.Make
-            (CairoGraphics)
+            (Cairo)
             (Canvas)
             (struct let size () = 500.,500. end) in
-    
+
     let view = ObjectTree.create ~packing:tool_vbox#add () in
-            
+
             (* let target_entry = { Gtk.target= "INTEGER"; Gtk.flags= []; Gtk.info=123 } in *)
             (* view#drag#source_set ~modi:[`BUTTON1] ~actions:[`COPY] [target_entry]; *)
             (* area#drag#dest_set ~flags:[`HIGHLIGHT;`MOTION] ~actions:[`COPY] [target_entry]; *)
@@ -110,7 +110,7 @@ let create () =
             Sys.catch_break true;
             (* Listener.add_listener receive; *)
             ignore(window#show ());
-        
+
             update_display (module Window : Sig) ();
             send (Protocol.Server (Protocol.RequestUserList));
         (* Main loop: *)
@@ -120,5 +120,3 @@ let create () =
     login_loop false login_data ()
   in
   return a
-
- 

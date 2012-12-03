@@ -10,12 +10,12 @@ module Make(L : LAYOUT)(P : PAINTER)(E : EVENT) : S = struct
     Cairo.curve_to cr ~x1:(x+. width) ~y1:(y+. height) ~x2:(x +. width) ~y2:(y +. height) ~x3:(x +. width /. 2.) ~y3:(y +. height);
     Cairo.curve_to cr ~x1:x ~y1:(y +. height) ~x2:x ~y2:(y +. height) ~x3:x ~y3:(y +. height /. 2.);
     Cairo.restore cr
-      
 
-  let rectangle cr ~pos:(x,y) ~size:(width,height) = 
+
+  let rectangle cr ~pos:(x,y) ~size:(width,height) =
     let pat = (Cairo.Pattern.create_linear ~x0:x ~y0:y ~x1:(x+.width) ~y1:(y+.height)) in
-    Cairo.Pattern.add_color_stop_rgb pat ~off:0.0 ~red:0.6 ~green:0.6 ~blue:0.7;
-    Cairo.Pattern.add_color_stop_rgb pat ~off:1.0 ~red:0.6 ~green:0.6 ~blue:1.0;
+    (* Cairo.Pattern.add_color_stop_rgb pat ~ofs:0.0 ~red:0.6 ~green:0.6 ~blue:0.7; *)
+    (* Cairo.Pattern.add_color_stop_rgb pat ~ofs:1.0 ~red:0.6 ~green:0.6 ~blue:1.0; *)
     Cairo.set_source cr pat;
     draw_curved_rectangle cr ~x ~y ~width ~height;
     Cairo.fill cr
@@ -23,12 +23,12 @@ module Make(L : LAYOUT)(P : PAINTER)(E : EVENT) : S = struct
   let f (cairo, rect, ts) state =
     let x,y,width,height = Rect.coords rect in
     let red, green, blue = 0.3, 0.3, 0.3 in
-    Cairo.set_source_rgb cairo ~red ~green ~blue;
+    (* Cairo.set_source_rgb cairo ~red ~green ~blue; *)
     rectangle cairo ~pos:(x,y) ~size:(width,height);
     Cairo.fill cairo
 
   let paint = paint f
-    
+
 
   let state =
     let with_pos b { EventInfo.Mouse.Press.mouse = { EventInfo.Mouse.pos } } =
@@ -38,7 +38,7 @@ module Make(L : LAYOUT)(P : PAINTER)(E : EVENT) : S = struct
         | _,(true,pos) -> State.Dragging pos
         | _,(false,_) -> State.Normal
         | state,_ -> state) State.initial
-      (React.E.select 
+      (React.E.select
          [React.E.map (with_pos true) E.press;
           React.E.map (with_pos false)  E.release])
 
