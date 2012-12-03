@@ -1,0 +1,3 @@
+#!/bin/sh
+# Browse issues
+ditz html | awk '{ print $4}' | xargs $BROWSER
