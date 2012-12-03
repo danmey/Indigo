@@ -1,0 +1,12 @@
+opam-version: "1"
+maintainer: "wojciech.meyer@gmail.com"
+depends: ["ocamlfind" "react" "bolt" "cairo" "lwt" "pcre-ocaml" "yojson"]
+build: [
+  ["%{make}%" "all"]
+]
+
+remove: [
+  ["%{make}%" "clean"]
+]
+
+ocaml-version: [>= "4.00.0"]
