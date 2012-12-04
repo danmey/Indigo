@@ -1,6 +1,6 @@
 (*----------------------------------------------------------------------------
   config.ml - Config file parsing
-  Copyright (C) 2011 Wojciech Meyer, Jakub Oboza 
+  Copyright (C) 2011 Wojciech Meyer, Jakub Oboza
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,14 +27,13 @@ module Client = struct
   let config_filename = "/.indigo.json"
   (* TODO add File.join / Unix.join *)
   let config_file = (Unix.getpwuid (Unix.getuid ())).Unix.pw_dir ^ config_filename
-  let config = from_file config_file
   let default_host = "danmey.org"
   let default_uname = "wojtek"
   let default_port = 1234
   let default_pass = "main"
 
   let read () =
-      let default_config = 
+      let default_config =
 	{ LoginData.host = default_host;
 	  LoginData.port = default_port;
 	  LoginData.login = Some (LoginData.Uname default_uname) } in
@@ -57,13 +56,13 @@ module Client = struct
 		let host    = get_param string "host"    default_host       in
 		let uname   = get_param string "uname"   default_uname      in
 		let port    = get_param int    "port"    default_port       in
-		let login = 
-		  try 
-		    LoginData.FullLogin 
-		      { LoginData.pass = get_param_safe string "pass"; 
-			LoginData.uname }  
+		let login =
+		  try
+		    LoginData.FullLogin
+		      { LoginData.pass = get_param_safe string "pass";
+			LoginData.uname }
 		  with Wrong_type _ -> LoginData.Uname uname in
-		{ default_config with 
+		{ default_config with
 		  LoginData.host;
 		  LoginData.port;
 		  LoginData.login = Some login } end
@@ -76,7 +75,7 @@ module Client = struct
     let json = `Assoc (["host", `String host;
 			"port", `Int port;] @
 			  match login with
-			    | Some (LoginData.FullLogin 
+			    | Some (LoginData.FullLogin
 				      { LoginData.uname;
 					LoginData.pass; }) ->
 			      ["uname", `String uname;
@@ -86,10 +85,10 @@ module Client = struct
 			    | None -> []) in
     to_file config_file json
 
-  let with_profile f = let data = read () in 
+  let with_profile f = let data = read () in
                        let data = f data  in
-                       match data with 
-                         | Some data -> write data; Some data 
+                       match data with
+                         | Some data -> write data; Some data
                          | None -> data
 
 end
@@ -102,9 +101,8 @@ module Server = struct
 
   let read () =
     let config = from_file config_file in
-      match config with 
+      match config with
         | `Assoc lst -> List.map (fun (name, pass)-> name, string pass) lst
 	| _ -> []
-  
-end
 
+end
