@@ -43,7 +43,7 @@ module Make(C : Protocol.S with type t = Protocol.t)
 
   let rec start port =
     let open Lwt_unix in
-    LOG "Starting server on port: (%d)" port LEVEL DEBUG;
+    (* LOG "Starting server on port: (%d)" port LEVEL DEBUG; *)
     Sys.set_signal Sys.sigpipe Sys.Signal_ignore;
     Sys.catch_break true;
     lwt host_name = gethostname () in
@@ -72,7 +72,7 @@ module Make(C : Protocol.S with type t = Protocol.t)
     in
 
     let kick_client uname =
-    LOG "St: (%d)" port LEVEL DEBUG;
+    (* LOG "St: (%d)" port LEVEL DEBUG; *)
       let clients' = Queue.copy clients in
       Queue.clear clients;
       begin Queue.iter
