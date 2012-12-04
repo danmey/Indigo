@@ -7,8 +7,8 @@ type: :bugfix
 component: Indigo
 release: 
 reporter: Wojciech Meyer <wojciech.meyer@gmail.com>
-status: :unstarted
-disposition: 
+status: :closed
+disposition: :fixed
 creation_time: 2012-12-03 20:50:47.433371 Z
 references: []
 
@@ -18,3 +18,7 @@ log_events:
   - Wojciech Meyer <wojciech.meyer@gmail.com>
   - created
   - ""
+- - 2012-12-04 20:49:22.225343 Z
+  - Wojciech Meyer <wojciech.meyer@gmail.com>
+  - closed with disposition fixed
+  - This was due to logging tool Bolt crashing the application on startup
