@@ -1,0 +1,20 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Investigate and re-implement Bolt logging again
+desc: |-
+  Currently the Bolt has been removed entirelly in {issue b9124e164233f19930e71cb4083d8dc4a3afd65d}. We need some facilities for logging, preferable using Bolt.
+  This needs to ensure it will not give any surprises later.
+type: :task
+component: Indigo
+release: 
+reporter: Wojciech Meyer <wojciech.meyer@gmail.com>
+status: :unstarted
+disposition: 
+creation_time: 2012-12-04 20:51:10.417394 Z
+references: []
+
+id: e7ee368f73a7f7a4f98170e527d678ca163858d1
+log_events: 
+- - 2012-12-04 20:51:11.741338 Z
+  - Wojciech Meyer <wojciech.meyer@gmail.com>
+  - created
+  - ""
