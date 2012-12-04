@@ -1,6 +1,8 @@
-_build
-*.native
-resources
+/_build
+/html
+/*.native
+/*.byte
+/resources
 log
 *~
 log-config
