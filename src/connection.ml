@@ -18,8 +18,6 @@
 
 
 open Lwt
-open Lwt_unix
-open Lwt_chan
 
 
 module Make(C : Protocol.S with type t = Protocol.t)
@@ -27,23 +25,24 @@ module Make(C : Protocol.S with type t = Protocol.t)
 
   let read_val_server in_ch =
     try_lwt
-      input_value in_ch >>= fun (v : C.t) -> return (Some v)
-    with 
+      Lwt_chan.input_value in_ch >>= fun (v : C.t) -> return (Some v)
+    with
       | End_of_file -> return None
       | Unix.Unix_error (_,_,_) -> return None
 
-  open Protocol.Log    
-module Server = struct
+  open Protocol.Log
+  module Server = struct
 
   type client = {
     mutable name: string option;
     in_ch: Lwt_io.input_channel;
     out_ch: Lwt_io.output_channel }
 
-  let rec restart_on_EINTR f x = 
+  let rec restart_on_EINTR f x =
     try f x with Unix.Unix_error (Unix.EINTR, _, _) -> restart_on_EINTR f x
 
   let rec start port =
+    let open Lwt_unix in
     LOG "Starting server on port: (%d)" port LEVEL DEBUG;
     Sys.set_signal Sys.sigpipe Sys.Signal_ignore;
     Sys.catch_break true;
@@ -55,26 +54,20 @@ module Server = struct
     let passwd = Config.Server.read () in
 
     let send_all cmd =
-      return (Queue.iter 
-        (fun {out_ch} -> 
+      return (Queue.iter
+        (fun {out_ch} ->
           Lwt.ignore_result(output_value out_ch cmd))
         clients) in
 
-    (* let send_others name cmd = *)
-    (*   return (Queue.iter  *)
-    (*     (fun (name',(_,out_ch)) ->  *)
-    (*       if name <> name' then *)
-    (*         Lwt.ignore_result(output_value out_ch cmd)) *)
-    (*     clients) in *)
     let remove_client uname =
       let clients' = Queue.copy clients in
       Queue.clear clients;
-      return begin Queue.iter 
-          (function 
-            | {name=Some name} as client -> 
-              begin if uname <> name 
+      return begin Queue.iter
+          (function
+            | {name=Some name} as client ->
+              begin if uname <> name
                 then Queue.add client clients end
-            | client -> Queue.add client clients 
+            | client -> Queue.add client clients
           ) clients' end
     in
 
@@ -82,12 +75,12 @@ module Server = struct
     LOG "St: (%d)" port LEVEL DEBUG;
       let clients' = Queue.copy clients in
       Queue.clear clients;
-      begin Queue.iter 
-          (function 
-            | {out_ch;name=Some name} as client -> 
+      begin Queue.iter
+          (function
+            | {out_ch;name=Some name} as client ->
               begin if uname = name then
                   Lwt.ignore_result (output_value out_ch (C.Client (C.KickUser uname))) end
-            | client -> Queue.add client clients 
+            | client -> Queue.add client clients
           ) clients' end;
       remove_client uname
     in
@@ -95,17 +88,17 @@ module Server = struct
     let receive ({ name; in_ch; out_ch } as client) =
       try_lwt
       lwt cmd = input_value in_ch in
-      lwt () = match cmd with 
+      lwt () = match cmd with
         | C.Client _ as cmd  -> send_all cmd
         | C.Server cmd ->
           begin match cmd with
             | C.RequestLogin (uname, pass) ->
               let module M = Map.Make (struct type t = string let compare = String.compare end) in
-              let set = Queue.fold 
+              let set = Queue.fold
                 (fun set ->
-                  function 
-                    | {name=Some name} as el -> 
-                      M.add name el set 
+                  function
+                    | {name=Some name} as el ->
+                      M.add name el set
                     | _ -> set) M.empty clients in
               begin
               try_lwt
@@ -113,7 +106,7 @@ module Server = struct
                 output_value out_ch (C.Client (C.UserAlreadyLoggedIn uname))
               with Not_found ->
                 let pass' = Digest.to_hex (Digest.string (List.assoc uname passwd)) in
-                if pass = pass' 
+                if pass = pass'
                 then lwt () =
                     client.name <- Some uname;
                     output_value out_ch (C.Client (C.Login uname)) in
@@ -122,7 +115,7 @@ module Server = struct
               end
 
             | C.RequestUserList ->
-              let lst = Queue.fold 
+              let lst = Queue.fold
                 (fun lst -> function
                   | {name=Some name} ->  name :: lst
                   | _ -> lst) [] clients in
@@ -131,19 +124,19 @@ module Server = struct
             | C.Quit uname -> remove_client uname
             | C.Kick uname -> kick_client uname
       end
-                
+
       in
       return None
       with | End_of_file
            | Unix.Unix_error _ -> return name
     in
     let add_client (in_ch,out_ch) = Queue.add {name=None; in_ch; out_ch} clients in
-    
+
     let server = Lwt_io.establish_server addr add_client in
-        
+
     at_exit (fun () -> Lwt_io.shutdown_server server);
-    while_lwt true do 
-    lwt () = Lwt_unix.sleep 0.01 in 
+    while_lwt true do
+    lwt () = Lwt_unix.sleep 0.01 in
     return (Queue.iter
               begin fun client ->
               Lwt.ignore_result begin match_lwt receive client with
@@ -153,22 +146,26 @@ module Server = struct
 
 end
 
-
 module Client = struct
-  type ('a, 'b) result = 
+  type ('a, 'b) result =
     | Authorised of 'a * 'b
     | BadPass
     | BadUname
     | UserAlreadyLoggedIn of string
     | Kick of string
-  let connect ?(kick=false) { LoginData.port; LoginData.host; LoginData.login } disconnect =
+  let connect ?(kick=false)
+      { LoginData.port;
+        LoginData.host;
+        LoginData.login } disconnect =
+    let open Lwt_unix in
+    let open Lwt_chan in
      lwt host_name = gethostname () in
      lwt entry = gethostbyname host_name in
      let host = entry.h_addr_list.(0) in
      let addr = ADDR_INET (host, port) in
      lwt in_ch, out_ch = open_connection addr in
      let rec loop () =
-       match_lwt read_val_server in_ch with 
+       match_lwt read_val_server in_ch with
          | Some (C.Client (C.KickUser name)) -> disconnect ()
          | Some (C.Client cmd) -> R.receive cmd; loop ()
          | _ -> disconnect ()
@@ -188,8 +185,8 @@ module Client = struct
             | Some(C.Client (C.UserAlreadyLoggedIn uname')) ->
                 return (UserAlreadyLoggedIn uname')
             | _ ->  loop2 () in
-                lwt () = 
-                if kick 
+                lwt () =
+                if kick
                 then output_value out_ch (C.Server (C.Kick (uname)))
                 else return () in
                 lwt () = output_value out_ch (C.Server (C.RequestLogin (uname, pass))) in
