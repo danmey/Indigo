@@ -28,9 +28,15 @@ module Client = struct
               | _ -> None
             end
           else None
+
+    let is_end_session = function
+    | E.MouseDown _ -> true
+    | _ -> false
 end
 
 module M = Manager.Make(Client)
 let () =
   G.open_graph "";
+  M.open_screen "main";
+  M.event_loop ();
   G.close_graph ()

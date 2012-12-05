@@ -7,3 +7,5 @@ type 'a t =
   | KeyUp of 'a * position * key_code
 
 type prim = unit t
+
+type window = unit t

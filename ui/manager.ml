@@ -1,6 +1,7 @@
 
 module type CLIENT = sig
   val poll_event : unit -> Event.prim option
+  val is_end_session : Event.window -> bool
 end
 
 module Make(Client : CLIENT) = struct
@@ -25,4 +26,17 @@ module Make(Client : CLIENT) = struct
   let register_receiver receiver =
     manager.event_receivers <- receiver :: manager.event_receivers
 
+  let translate_event x = x
+
+  let event_loop () =
+    let rec loop () =
+      match Client.poll_event () with
+      | Some event ->
+        let event = translate_event event in
+        if not (Client.is_end_session event) then
+          loop ()
+      | None ->
+        loop ()
+    in
+    loop ()
 end
