@@ -6,3 +6,6 @@ let create name =
   { windows = [];
     name;
     root = Window.create () }
+
+let add_window screen window =
+  screen.windows <-  window :: screen.windows
