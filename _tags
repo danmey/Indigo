@@ -18,3 +18,4 @@ true: debug
 <src/{widget_sig,window}.*>: package(cairo2)
 <src/{canvas,gtk_react,window}.*>: package(react),package(lablgtk2)
 <ui/example/simple.*>: use_graphics
+<ui/**>: thread, package(threads)
