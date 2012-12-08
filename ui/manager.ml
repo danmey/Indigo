@@ -21,11 +21,17 @@ let open_screen name =
   | None -> manager.current_screen <- Some screen
   | Some _ -> ()
 
-let open_window ~x ~y ~w ~h ?parent name =
+let open_window ~abs_x ~abs_y ~w ~h ?parent name =
   let screen = current_screen() in
   let window = Window.create () in
-  Window.(window.rel_x <- x;
-          window.rel_y <- y;
+  Window.(window.rel_x <- abs_x;
+          window.rel_y <- abs_y;
           window.width <- w;
           window.height <- h;
           Screen.add_window screen window)
+
+let pick_window ~abs_x ~abs_y =
+  let screen = current_screen () in
+  Window.pick ~abs_x ~abs_y screen.Screen.root
+
+let windows () = List.flatten ((current_screen()).Screen.windows)

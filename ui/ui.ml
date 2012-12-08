@@ -15,20 +15,32 @@ module Make(Client : CLIENT) = struct
   let event_loop () =
     let (x, y), (width, height) = Client.screen_rect () in
     Client.redraw_screen ~x ~y ~width ~height;
+    let screen = Manager.current_screen () in
+    screen.Screen.root.Window.width <- width;
+    screen.Screen.root.Window.height <- height;
+    Manager.open_window ~abs_x:100 ~abs_y:100 ~w:100 ~h:100 "test";
+    List.iter (fun window ->
+      Window.(Client.repaint_window
+                ~x:window.rel_x
+                ~y:window.rel_y
+                ~width:window.width
+                ~height:window.height))
+      (Manager.windows ());
+    Client.redraw_screen ~x ~y ~width ~height;
     let rec loop () =
       Thread.yield();
       match Client.poll_event () with
       | Some event ->
         let event = translate_event event in
         List.iter (fun window -> Client.on_event (Some window) event)
-          Manager.((current_screen ()).Screen.windows);
+          (Manager.windows ());
         List.iter (fun window ->
           Window.(Client.repaint_window
                     ~x:window.rel_x
                     ~y:window.rel_y
                     ~width:window.width
                     ~height:window.height))
-          Manager.((current_screen ()).Screen.windows);
+          (Manager.windows ());
         Client.on_event None event;
         let (x, y), (width, height) = Client.screen_rect () in
         Client.redraw_screen ~x ~y ~width ~height;

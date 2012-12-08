@@ -28,6 +28,12 @@ let rec before item new_item zorder =
   | [] -> [[new_item]]
 
 let compare first second zorder =
-  let first,_ =  BatList.findi (BatList.memq first) zorder in
-  let second,_ = BatList.findi (BatList.memq second) zorder in
+  let first,_ =  BatList.findi (fun _ lst -> List.memq first lst) zorder in
+  let second,_ = BatList.findi (fun _ lst -> List.memq second lst) zorder in
   second - first
+
+let remove item zorder = BatList.map (BatList.filter ((<>) item)) zorder
+
+let find p zorder = List.find (List.find p) zorder
+
+let empty = [[]]

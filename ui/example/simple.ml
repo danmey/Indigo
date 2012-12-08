@@ -41,8 +41,9 @@ module Client = struct
     G.draw_rect (x+2) (y+2) (width-4) (height-4)
 
   let on_event window = function
-  | E.MouseDown (_,(x,y)) ->
-    Manager.open_window ~x ~y ~w:100 ~h:100 "test"
+  | E.MouseDown (_,(abs_x, abs_y)) ->
+    M.pick_window ~abs_x ~abs_y;
+    M.open_window ~abs_x ~abs_y ~w:100 ~h:100 "test"
   | _ -> ()
 
   let redraw_screen ~x ~y ~width ~height =
@@ -60,5 +61,10 @@ let () =
   G.open_graph "";
   G.auto_synchronize false;
   M.open_screen "main";
+  G.set_color G.black;
+  let _, (w,h) = (0,0), (G.size_x (),G.size_y ()) in
+  G.fill_rect 0 0 w h;
+  G.synchronize();
+  G.synchronize();
   UI.event_loop ();
   G.close_graph ()
