@@ -18,22 +18,14 @@ module Make(Client : CLIENT) = struct
     let screen = Manager.current_screen () in
     screen.Screen.root.Window.width <- width;
     screen.Screen.root.Window.height <- height;
-    Manager.open_window ~rel_x:500 ~rel_y:500 ~w:500 ~h:500 "test";
-    List.iter (fun window ->
-      Window.(Client.repaint_window
-                ~x:window.rel_x
-                ~y:window.rel_y
-                ~width:window.width
-                ~height:window.height))
-      (Manager.windows ());
-    Client.redraw_screen ~x ~y ~width ~height;
     let rec loop () =
       Thread.yield();
       match Client.poll_event () with
       | Some event ->
         let event = translate_event event in
-        List.iter (fun window -> Client.on_event (Some window) event)
-          (Manager.windows ());
+        let abs_x, abs_y = Event.position event in
+        let window :: _ = Manager.pick_window ~abs_x ~abs_y in
+        Client.on_event (Some window) event;
         List.iter (fun window ->
           let x,y = Window.absolute_coord ~rel_x:0 ~rel_y:0 window in
           Window.(Client.repaint_window
@@ -42,7 +34,6 @@ module Make(Client : CLIENT) = struct
                     ~width:window.width
                     ~height:window.height))
           (Manager.windows ());
-        Client.on_event None event;
         let (x, y), (width, height) = Client.screen_rect () in
         Client.redraw_screen ~x ~y ~width ~height;
         if not (Client.is_end_session event) then
@@ -50,5 +41,6 @@ module Make(Client : CLIENT) = struct
       | None -> loop ()
     in
     loop ()
+
 
 end

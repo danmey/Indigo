@@ -9,3 +9,9 @@ type 'a t =
 type prim = unit t
 
 type window = unit t
+
+let position = function
+| MouseDown (_, position)
+| MouseUp (_, position)
+| KeyDown (_, position, _)
+| KeyUp (_, position, _) -> position

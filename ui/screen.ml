@@ -1,11 +1,12 @@
-type t = { mutable windows : Window.t Zorder.t
+type t = { mutable zorder : Window.t Zorder.t
          ; name : string
          ; root : Window.t }
 
 let create name =
-  { windows = Zorder.empty;
+  let window = Window.create () in
+  { zorder = Zorder.single window;
     name;
-    root = Window.create () }
+    root = window }
 
-let add_window screen window =
-  screen.windows <-  [window] :: screen.windows
+let add_window screen parent_window window =
+  screen.zorder <- Zorder.push_after parent_window window screen.zorder

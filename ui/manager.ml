@@ -29,13 +29,15 @@ let open_window ~rel_x ~rel_y ~w ~h ?parent name =
           window.width <- w;
           window.height <- h;
           (match parent with
-            Some parent -> parent.children <- window :: parent.children
+            Some parent ->
+              parent.children <- window :: parent.children;
+              Screen.add_window screen parent window
           | None -> ());
-          window.parent = parent;
-          Screen.add_window screen window)
+          window.parent <- parent);
+  Window.print Format.std_formatter ((current_screen ()).Screen.root)
 
 let pick_window ~abs_x ~abs_y =
   let screen = current_screen () in
   Window.pick ~abs_x ~abs_y screen.Screen.root
 
-let windows () = List.flatten ((current_screen()).Screen.windows)
+let windows () = List.flatten ((current_screen()).Screen.zorder)

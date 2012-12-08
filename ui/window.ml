@@ -21,9 +21,18 @@ let create () =
     depth = 0;
     enabled = true }
 
-let print ppf {rel_x; rel_y; width; height} =
+let print ppf window =
   let open Format in
-  fprintf ppf "@[<h>{@ @[<hov 0>(%d,@ %d)@ (%d,@ %d)@]@ }@]@." rel_x rel_y width height
+  let rec visit ppf {rel_x; rel_y; width; height; children} =
+    match children with
+    [] -> fprintf ppf "@[<h>@[<hov 0>(%d,@ %d)@ (%d,@ %d)@]@]@," rel_x rel_y width height
+    | children ->
+      fprintf ppf "@[<v 2>@[<h>@[<hov 0>(%d,@ %d)@ (%d,@ %d)@]@]@,%a@]@," rel_x rel_y width height (fun ppf lst ->
+        List.iter (visit ppf) lst) children;
+
+  in
+  visit ppf window;
+  fprintf ppf "=======@."
 
 
 let calc_coord f x y window =
@@ -50,7 +59,8 @@ let pick ~abs_x ~abs_y window =
         && rel_y >= 0
         && rel_y < window.height then
         visit (window :: acc) rest
-      else acc in
+      else acc
+    in
     visit acc window.children
   in
   visit [] [window]
