@@ -18,7 +18,7 @@ module Make(Client : CLIENT) = struct
     let screen = Manager.current_screen () in
     screen.Screen.root.Window.width <- width;
     screen.Screen.root.Window.height <- height;
-    Manager.open_window ~abs_x:100 ~abs_y:100 ~w:100 ~h:100 "test";
+    Manager.open_window ~rel_x:500 ~rel_y:500 ~w:500 ~h:500 "test";
     List.iter (fun window ->
       Window.(Client.repaint_window
                 ~x:window.rel_x
@@ -35,9 +35,10 @@ module Make(Client : CLIENT) = struct
         List.iter (fun window -> Client.on_event (Some window) event)
           (Manager.windows ());
         List.iter (fun window ->
+          let x,y = Window.absolute_coord ~rel_x:0 ~rel_y:0 window in
           Window.(Client.repaint_window
-                    ~x:window.rel_x
-                    ~y:window.rel_y
+                    ~x
+                    ~y
                     ~width:window.width
                     ~height:window.height))
           (Manager.windows ());

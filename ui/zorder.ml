@@ -34,6 +34,14 @@ let compare first second zorder =
 
 let remove item zorder = BatList.map (BatList.filter ((<>) item)) zorder
 
+let push_before item before_item zorder =
+  let zorder = remove before_item zorder in
+  before item before_item zorder
+
+let push_after item after_item zorder =
+  let zorder = remove after_item zorder in
+  after item after_item zorder
+
 let find p zorder = List.find (List.find p) zorder
 
 let empty = [[]]

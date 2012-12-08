@@ -6,6 +6,7 @@ type t = { mutable rel_x : int
          ; mutable height : int
          ; mutable dirty : bool
          ; mutable children : t list
+         ; mutable parent : t option
          ; mutable depth : int
          ; mutable enabled : bool }
 
@@ -16,34 +17,40 @@ let create () =
     height = 0;
     dirty = true;
     children = [];
+    parent = None;
     depth = 0;
     enabled = true }
 
-exception Found of t
+let print ppf {rel_x; rel_y; width; height} =
+  let open Format in
+  fprintf ppf "@[<h>{@ @[<hov 0>(%d,@ %d)@ (%d,@ %d)@]@ }@]@." rel_x rel_y width height
+
+
+let calc_coord f x y window =
+  let rec visit x y = function
+  | Some window -> visit (f x window.rel_x) (f y window.rel_y) window.parent
+  | None -> x, y
+  in
+  visit x y (Some window)
+
+let relative_coord ~abs_x ~abs_y window =
+  calc_coord (-) abs_x abs_y window
+
+let absolute_coord ~rel_x ~rel_y window =
+  calc_coord (+) rel_x rel_y window
 
 let pick ~abs_x ~abs_y window =
-  let rec visit abs_x abs_y window =
-    print_int abs_x;
-    print_newline ();
-    print_int abs_y;
-    print_newline ();
-    print_int window.rel_x;
-    print_newline ();
-    print_int window.rel_y;
-    print_newline ();
-    flush stdout;
-    if abs_x >= window.rel_x &&
-      abs_x < window.rel_x + window.width
-      && abs_y > window.rel_y &&
-      abs_y < window.rel_y + window.height
-    then true
-    else
-      try let window = List.find (visit (abs_x - window.rel_x) (abs_y - window.rel_y)) window.children
-          in raise (Found window)
-      with Not_found -> false
+  let rec visit acc = function
+  | [] -> acc
+  | window :: rest ->
+    let rel_x, rel_y = relative_coord ~abs_x ~abs_y window in
+    let acc =
+      if rel_x >= 0
+        && rel_x < window.width
+        && rel_y >= 0
+        && rel_y < window.height then
+        visit (window :: acc) rest
+      else acc in
+    visit acc window.children
   in
-  try
-    if visit abs_x abs_y window
-    then window
-    else raise Not_found
-  with Found window -> window
+  visit [] [window]

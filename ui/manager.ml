@@ -21,13 +21,17 @@ let open_screen name =
   | None -> manager.current_screen <- Some screen
   | Some _ -> ()
 
-let open_window ~abs_x ~abs_y ~w ~h ?parent name =
+let open_window ~rel_x ~rel_y ~w ~h ?parent name =
   let screen = current_screen() in
   let window = Window.create () in
-  Window.(window.rel_x <- abs_x;
-          window.rel_y <- abs_y;
+  Window.(window.rel_x <- rel_x;
+          window.rel_y <- rel_y;
           window.width <- w;
           window.height <- h;
+          (match parent with
+            Some parent -> parent.children <- window :: parent.children
+          | None -> ());
+          window.parent = parent;
           Screen.add_window screen window)
 
 let pick_window ~abs_x ~abs_y =

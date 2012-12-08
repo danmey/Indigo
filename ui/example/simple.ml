@@ -36,14 +36,14 @@ module Client = struct
 
   let repaint_window ~x ~y ~width ~height =
     G.set_color G.white;
-    G.fill_rect x y width height;
-    G.set_color G.black;
-    G.draw_rect (x+2) (y+2) (width-4) (height-4)
+    G.draw_rect x y width height
 
   let on_event window = function
   | E.MouseDown (_,(abs_x, abs_y)) ->
-    M.pick_window ~abs_x ~abs_y;
-    M.open_window ~abs_x ~abs_y ~w:100 ~h:100 "test"
+    let windows = M.pick_window ~abs_x ~abs_y in
+    let window = List.hd (List.rev windows) in
+    let rel_x, rel_y = Window.relative_coord ~abs_x ~abs_y window in
+    M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:(List.hd (List.rev windows))
   | _ -> ()
 
   let redraw_screen ~x ~y ~width ~height =
