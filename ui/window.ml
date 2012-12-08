@@ -64,3 +64,7 @@ let pick ~abs_x ~abs_y window =
     visit acc window.children
   in
   visit [] [window]
+
+let abs_rect window =
+  let x, y = absolute_coord ~rel_x:0 ~rel_y:0 window in
+  Rect.Int.rect (x,y) (window.width, window.height)

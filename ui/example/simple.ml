@@ -1,6 +1,7 @@
+module O = BatOption
+module R = Rect.Int
 module G = Graphics
 module E = Event
-
 module M = Manager
 
 module Client = struct
@@ -34,7 +35,10 @@ module Client = struct
   | E.KeyDown _ -> true
   | _ -> false
 
-  let repaint_window ~x ~y ~width ~height =
+  let repaint_window ~x ~y ~width ~height ~(clip: R.t option) =
+    let rect = R.rect (x,y) (width,height) in
+    let (x,y,width,height) =
+      R.coords (O.map_default (R.clip_rect rect) rect clip) in
     G.set_color G.white;
     G.draw_rect x y width height;
     G.set_color G.black;

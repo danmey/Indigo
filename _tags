@@ -19,3 +19,4 @@ true: debug
 <src/{canvas,gtk_react,window}.*>: package(react),package(lablgtk2)
 <ui/example/simple.*>: use_graphics
 <ui/**>: thread, package(threads), package(batteries)
+<geomlib/**>: thread, package(threads), package(batteries)
