@@ -1,5 +1,5 @@
 
-module Option = BatOption
+module O = BatOption
 let (-|) = BatPervasives.(-|)
 
 module type CLIENT = sig
@@ -32,7 +32,7 @@ module Make(Client : CLIENT) = struct
         Client.on_event (Some window) event;
         List.iter (fun window ->
           let x,y = Window.absolute_coord ~rel_x:0 ~rel_y:0 window in
-          let clip = Option.bind (Option.Monad.return -| Window.abs_rect) window.Window.parent in
+          let clip = O.bind (O.Monad.return -| Window.abs_rect) window.Window.parent in
           Window.(Client.repaint_window
                     ~x
                     ~y
