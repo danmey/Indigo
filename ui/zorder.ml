@@ -52,3 +52,7 @@ let push_after item after_item zorder =
 let find p (root, zorder) = List.find (List.find p) zorder
 
 let empty root = root,[]
+
+let order (root, zorder) = root :: zorder
+
+let rev_order zorder = List.rev (order zorder)

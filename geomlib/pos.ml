@@ -27,7 +27,7 @@ module Make(T :
 
   open T
 
-  type t = (T.t*T.t)
+  type t = T.t * T.t
   let fold2 f (x1,y1) (x2,y2) = (f x1 x2, f y1 y2)
   let sub = fold2 (-)
   let add = fold2 (+)
@@ -42,6 +42,7 @@ module Make(T :
   let clip (x,y,w,h) (px,py) =
     (if px >= x then (if px < x+w then px else x+w) else x),
     (if py >= y then (if py < y+h then py else y+h) else y)
+
 end
 
 module Int = Make(BatInt)

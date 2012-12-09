@@ -35,22 +35,22 @@ let relative_coord ~abs_x ~abs_y window =
 let absolute_coord ~rel_x ~rel_y window =
   calc_coord (+) rel_x rel_y window
 
-let pick ~abs_x ~abs_y window =
-  let rec visit acc = function
-  | [] -> acc
-  | window :: rest ->
-    let rel_x, rel_y = relative_coord ~abs_x ~abs_y window in
-    let acc =
-      if rel_x >= 0
-        && rel_x < window.width
-        && rel_y >= 0
-        && rel_y < window.height then
-        visit (window :: acc) rest
-      else acc
-    in
-    visit acc window.children
-  in
-  visit [] [window]
+(* let pick ~abs_x ~abs_y window = *)
+(*   let rec visit acc = function *)
+(*   | [] -> acc *)
+(*   | window :: rest -> *)
+(*     let rel_x, rel_y = relative_coord ~abs_x ~abs_y window in *)
+(*     let acc = *)
+(*       if rel_x >= 0 *)
+(*         && rel_x < window.width *)
+(*         && rel_y >= 0 *)
+(*         && rel_y < window.height then *)
+(*         visit (window :: acc) rest *)
+(*       else acc *)
+(*     in *)
+(*     visit acc window.children *)
+(*   in *)
+(*   visit [] [window] *)
 
 let abs_rect window =
   let x, y = absolute_coord ~rel_x:0 ~rel_y:0 window in

@@ -59,8 +59,7 @@ module Client = struct
 
   let on_event window = function
   | E.MouseDown (_,(abs_x, abs_y)) ->
-    let windows = M.pick_window ~abs_x ~abs_y in
-    let window = List.hd windows in
+    let window = M.pick_window ~abs_x ~abs_y in
     let rel_x, rel_y = Window.relative_coord ~abs_x ~abs_y window in
     Format.fprintf Format.std_formatter "Picked: %a@." Window.print window;
     M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window

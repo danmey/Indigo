@@ -44,6 +44,17 @@ let open_window ~rel_x ~rel_y ~w ~h ?parent name =
 
 let pick_window ~abs_x ~abs_y =
   let screen = current_screen () in
-  Window.pick ~abs_x ~abs_y screen.Screen.root
+  let rec loop = function
+  | window :: rest ->
+    let rel_x, rel_y = Window.relative_coord ~abs_x ~abs_y window in
+    if rel_x >= 0
+      && rel_x < window.Window.width
+      && rel_y >= 0
+      && rel_y < window.Window.height then
+      window
+    else loop rest
+  | [] -> raise Not_found
+  in
+  loop (Zorder.rev_order (current_screen()).Screen.zorder)
 
 let windows () = (snd (current_screen()).Screen.zorder)

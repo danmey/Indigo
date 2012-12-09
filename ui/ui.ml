@@ -28,7 +28,7 @@ module Make(Client : CLIENT) = struct
       | Some event ->
         let event = translate_event event in
         let abs_x, abs_y = Event.position event in
-        let window :: _ = Manager.pick_window ~abs_x ~abs_y in
+        let window = Manager.pick_window ~abs_x ~abs_y in
         Client.on_event (Some window) event;
         List.iter (fun window ->
           let x,y = Window.absolute_coord ~rel_x:0 ~rel_y:0 window in
