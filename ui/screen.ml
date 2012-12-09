@@ -13,3 +13,6 @@ let add_window screen parent_window window =
 
 let change_zorder screen f x =
   screen.zorder <- f x screen.zorder
+
+let set_size screen ~width ~height =
+  Window.set_size ~width ~height screen.root

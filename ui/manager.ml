@@ -40,6 +40,7 @@ let open_window ~rel_x ~rel_y ~w ~h ?parent name =
             Screen.add_window screen parent window
           | None -> ());
           window.parent <- parent);
+
   Window.print Format.std_formatter ((current_screen ()).Screen.root)
 
 let close_window window =

@@ -113,8 +113,13 @@ let y_coord window = window.rel_y
 let position window = x_coord window, y_coord window
 let size window = width window, height window
 
+
 let set_width window width = window.width <- width
 let set_height window height = window.height <- height
+
+let set_size ~width ~height window =
+  set_width window width;
+  set_height window height
 
 let add_width window n = window.width <- window.width + n
 let add_height window n = window.height <- window.height + n
