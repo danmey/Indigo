@@ -42,7 +42,7 @@ let open_window ~rel_x ~rel_y ~w ~h ?parent name =
           window.parent <- parent);
   Window.print Format.std_formatter ((current_screen ()).Screen.root)
 
-let pick_window ~abs_x ~abs_y =
+let pick_window_skip ~abs_x ~abs_y ?skip =
   let screen = current_screen () in
   let rec loop = function
   | window :: rest ->
@@ -51,10 +51,23 @@ let pick_window ~abs_x ~abs_y =
       && rel_x < window.Window.width
       && rel_y >= 0
       && rel_y < window.Window.height then
-      window
+      match skip with
+      | None -> window
+      | Some skip when skip != window -> window
+      | _ -> loop rest
     else loop rest
   | [] -> raise Not_found
   in
   loop (Zorder.rev_order (current_screen()).Screen.zorder)
 
+let pick_window ~abs_x ~abs_y = pick_window_skip ~abs_x ~abs_y ?skip:None
+
 let windows () = (snd (current_screen()).Screen.zorder)
+
+let set_window_topl window =
+  window.Window.parent <- Some ((current_screen()).Screen.root);
+  Screen.change_zorder (current_screen ()) Zorder.push_topl window
+
+let set_window_parent window ~parent =
+  window.Window.parent <- Some parent;
+  Screen.change_zorder (current_screen ()) (Zorder.push_after parent) window

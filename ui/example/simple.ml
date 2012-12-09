@@ -11,25 +11,32 @@ module Client = struct
   let poll_event =
     let last_button_down = ref false in
     let last_key_pressed = ref false in
+    let last_mouse_pos = ref (0,0) in
     fun () ->
       let button_down = G.button_down () in
       let key_pressed = G.key_pressed () in
+      let mouse_pos = G.mouse_pos () in
       if button_down <> !last_button_down then begin
         last_button_down := button_down;
         if button_down then
-          Some (E.MouseDown((), G.mouse_pos ()))
+          Some (E.MouseDown((), mouse_pos))
         else
-          Some (E.MouseUp((), G.mouse_pos ()))
+          Some (E.MouseUp((), mouse_pos))
       end
       else begin
         if key_pressed <> !last_key_pressed then begin
           G.read_key ();
           last_key_pressed := key_pressed;
           if key_pressed then
-            Some (E.KeyDown((), G.mouse_pos (), 0))
+            Some (E.KeyDown((), mouse_pos, 0))
           else
-            Some (E.KeyUp((), G.mouse_pos (), 0))
-        end else None
+            Some (E.KeyUp((), mouse_pos, 0))
+        end else
+        if mouse_pos <> !last_mouse_pos then begin
+          last_mouse_pos := mouse_pos;
+          Some (E.MouseMove((), mouse_pos))
+        end
+        else None
       end
 
 
@@ -57,14 +64,38 @@ module Client = struct
     rect (x,y,w,h)
 
 
-  let on_event window = function
-  | E.MouseDown (_,(abs_x, abs_y)) ->
-    let window = M.pick_window ~abs_x ~abs_y in
-    let rel_x, rel_y = Window.relative_coord ~abs_x ~abs_y window in
-    Format.fprintf Format.std_formatter "Picked: %a@." Window.print window;
-    M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
-  | _ -> ()
-
+  let on_event =
+    let button_down = ref false in
+    let dragging_window = ref None in
+    let dragging_pos = ref (0,0) in
+    fun window ->
+      function
+      | E.MouseDown (_,(abs_x, abs_y)) ->
+        button_down := true;
+        let window = M.pick_window ~abs_x ~abs_y in
+        let rel_x, rel_y = Window.relative_coord ~abs_x ~abs_y window in
+        if rel_y > window.Window.height - 16 then begin
+          Manager.set_window_topl window;
+          dragging_window := Some window;
+          dragging_pos := (rel_x, rel_y)
+        end else
+          M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
+      | E.MouseUp (_, (abs_x, abs_y)) ->
+        button_down := false;
+        begin match !dragging_window with
+        | Some window ->
+          dragging_window := None;
+          let parent = M.pick_window_skip ~abs_x ~abs_y ~skip:window in
+          Manager.set_window_parent ~parent window
+        | None -> ()
+        end
+      | E.MouseMove (_, (abs_x, abs_y)) ->
+        begin match !dragging_window with
+        | Some window when !button_down ->
+          Window.set_pos ~abs_x ~abs_y window
+        | _ -> ()
+        end
+      | _ -> ()
   let redraw_screen ~x ~y ~width ~height =
     G.synchronize();
     G.set_color G.black;

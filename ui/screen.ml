@@ -10,3 +10,6 @@ let create name =
 
 let add_window screen parent_window window =
   screen.zorder <- Zorder.after parent_window window screen.zorder
+
+let change_zorder screen f x =
+  screen.zorder <- f x screen.zorder

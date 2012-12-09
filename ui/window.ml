@@ -83,3 +83,10 @@ let print ppf window =
   in
   visit ppf window;
   fprintf ppf "=======@."
+
+let set_pos ~abs_x ~abs_y window =
+  window.rel_x <- abs_x;
+  window.rel_y <- abs_y
+
+let set_parent ~parent window =
+  window.parent <- Some parent

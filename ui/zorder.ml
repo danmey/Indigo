@@ -16,6 +16,8 @@ let rec before item new_item (root, zorder) =
   in
   root, visit zorder
 
+let topl item (root, zorder) =
+  root, zorder @ [item]
 
 (* let rec place item new_item zorder = *)
 (*   match zorder with *)
@@ -45,9 +47,13 @@ let remove item (root, zorder) = root, BatList.filter ((!=) item) zorder
 (*   let zorder = remove before_item zorder in *)
 (*   before item before_item zorder *)
 
-let push_after item after_item zorder =
+let push_after after_item item zorder =
   let zorder = remove after_item zorder in
   after item after_item zorder
+
+let push_topl item zorder =
+  let zorder = remove item zorder in
+  topl item zorder
 
 let find p (root, zorder) = List.find (List.find p) zorder
 
