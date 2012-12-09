@@ -1,4 +1,6 @@
+module P = Pos.Int
 module O = BatOption
+
 module R = Rect.Int
 module G = Graphics
 module E = Event
@@ -36,19 +38,31 @@ module Client = struct
   | _ -> false
 
   let repaint_window ~x ~y ~width ~height ~(clip: R.t option) =
-    let rect = R.rect (x,y) (width,height) in
-    let (x,y,width,height) =
-      R.coords (O.map_default (R.clip_rect rect) rect clip) in
-    G.set_color G.white;
-    G.draw_rect x y width height;
+    let line (x1,y1) (x2,y2) =
+      G.moveto x1 y1;
+      G.lineto x2 y2
+    in
+    let rect (x,y,w,h) =
+      line (x,y) (x+w,y);
+      line (x+w,y) (x+w,y+h);
+      line (x+w,y+h) (x,y+h);
+      line (x,y+h) (x,y)
+    in
+    let w,h = width, height in
     G.set_color G.black;
-    G.fill_rect (x+1) (y+1) (width-2) (height-2)
+    G.fill_rect (x+1) (y+1) (w-2) (h-2);
+    G.set_color G.white;
+    rect (x,y+h-16,16,16);
+    rect (x+w-16,y+h-16,16,16);
+    rect (x,y,w,h)
+
 
   let on_event window = function
   | E.MouseDown (_,(abs_x, abs_y)) ->
     let windows = M.pick_window ~abs_x ~abs_y in
     let window = List.hd windows in
     let rel_x, rel_y = Window.relative_coord ~abs_x ~abs_y window in
+    Format.fprintf Format.std_formatter "Picked: %a@." Window.print window;
     M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
   | _ -> ()
 
@@ -68,7 +82,7 @@ let () =
   G.auto_synchronize false;
   M.open_screen "main";
   G.set_color G.black;
-  let _, (w,h) = (0,0), (G.size_x (),G.size_y ()) in
+  let _, (w, h) = (0,0), (G.size_x (),G.size_y ()) in
   G.fill_rect 0 0 w h;
   G.synchronize();
   G.synchronize();

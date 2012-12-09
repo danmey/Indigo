@@ -39,5 +39,10 @@ module Make(T :
   let add_x p p' = (x p + x p', y p)
   let add_y p p' = (x p,y p + y p')
   let to_string (x,y) = Printf.sprintf "(%f, %f)" x y
-
+  let clip (x,y,w,h) (px,py) =
+    (if px >= x then (if px < x+w then px else x+w) else x),
+    (if py >= y then (if py < y+h then py else y+h) else y)
 end
+
+module Int = Make(BatInt)
+module Float = Make(BatFloat)

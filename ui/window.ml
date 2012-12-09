@@ -21,19 +21,6 @@ let create () =
     depth = 0;
     enabled = true }
 
-let print ppf window =
-  let open Format in
-  let rec visit ppf {rel_x; rel_y; width; height; children} =
-    match children with
-    [] -> fprintf ppf "@[<h>@[<hov 0>(%d,@ %d)@ (%d,@ %d)@]@]@," rel_x rel_y width height
-    | children ->
-      fprintf ppf "@[<v 2>@[<h>@[<hov 0>(%d,@ %d)@ (%d,@ %d)@]@]@,%a@]@," rel_x rel_y width height (fun ppf lst ->
-        List.iter (visit ppf) lst) children;
-
-  in
-  visit ppf window;
-  fprintf ppf "=======@."
-
 
 let calc_coord f x y window =
   let rec visit x y = function
@@ -68,3 +55,31 @@ let pick ~abs_x ~abs_y window =
 let abs_rect window =
   let x, y = absolute_coord ~rel_x:0 ~rel_y:0 window in
   Rect.Int.rect (x,y) (window.width, window.height)
+
+let print ppf window =
+  let open Format in
+  let rec visit ppf ({rel_x; rel_y; width; height; children; parent} as window) =
+    match children with
+    | [] ->
+      let abs_x,abs_y = absolute_coord ~rel_x:0 ~rel_y:0 window in
+      fprintf ppf "@[<h>@[<hov 0>(%d,@ %d)@ (%d,@ %d)@ ->@ (%d,@ %d)@]%s@]@,"
+        rel_x
+        rel_y
+        width height
+        abs_x
+        abs_y
+        (match parent with Some _ -> "*" | _ -> "")
+    | children ->
+      let abs_x,abs_y = absolute_coord ~rel_x:0 ~rel_y:0 window in
+      fprintf ppf "@[<v 2>@[<h>@[<hov 0>(%d,@ %d)@ (%d,@ %d)@ ->@ (%d,@ %d)@]@]%s@,%a@]@,"
+        rel_x
+        rel_y
+        width
+        height
+        abs_x
+        abs_y
+        (match parent with Some _ -> "*" | _ -> "")
+        (fun ppf lst -> List.iter (visit ppf) lst) children
+  in
+  visit ppf window;
+  fprintf ppf "=======@."

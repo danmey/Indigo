@@ -70,15 +70,16 @@ module Make(T :
     { r with
       w = w * s;
       h = h * s; }
+
   let clip_point {x;y;w;h} (px,py) =
     (if px >= x then (if px < x+w then px else x+w) else x),
     (if py >= y then (if py < y+h then py else y+h) else y)
 
-  let clip_rect r clip =
+  let clip_rect clip r =
     let px,py,w,h = coords r in
     let clip = clip_point clip in
-    let x,y = clip (px,py) in
-    let w,h = clip ((px+w), (py+h)) in
+    let x,y = clip (px, py) in
+    let w,h = clip ((px + w), (py + h)) in
     rect (x,y) (w-px,h-py)
 
 end
