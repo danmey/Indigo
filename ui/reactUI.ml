@@ -2,15 +2,46 @@ open Batteries
 
 module O = BatOption
 module R = Rect.Int
+module E = Event
 
-module Make(Client : Sig.CLIENT) = struct
+module Make(Client : UIsig.REACT_CLIENT) = struct
+
+  module Mouse = struct
+
+    type button = Left | Right | Middle
+    type position = int * int
+
+    let left_button, send_left_button = React.S.create false
+    let right_button, send_right_button = React.S.create false
+    let mid_button, send_mid_button = React.S.create false
+    let position, send_position = React.S.create (0,0)
+    let press, send_press = React.E.create ()
+    let release, send_release = React.E.create ()
+
+  end
 
   let event_loop () =
     let (x, y), (width, height) = Client.screen_rect () in
     let screen = Manager.current_screen () in
+    let mouse = Mouse.(UIsig.({ left_button
+                ; right_button
+                ; mid_button
+                ; position
+                ; press
+                ; release })) in
 
+    Client.connect mouse;
     Client.redraw_screen ~x ~y ~width ~height;
     Screen.set_size screen ~width ~height;
+
+    let do_event = function
+    | E.MouseDown ((), position) ->
+      Mouse.send_left_button true
+    | E.MouseUp ((), position) ->
+      Mouse.send_left_button false
+    | E.MouseMove ((), position) ->
+      Mouse.send_position position
+    | _ -> () in
 
     let rec loop () =
 
@@ -22,7 +53,7 @@ module Make(Client : Sig.CLIENT) = struct
         let abs_x, abs_y = Event.position event in
         let window = Manager.pick_window ~abs_x ~abs_y in
 
-        Client.on_event window event;
+        do_event event;
 
         List.iter (fun window ->
           let x, y = Window.absolute_coord ~rel_x:0 ~rel_y:0 window in
@@ -45,6 +76,7 @@ module Make(Client : Sig.CLIENT) = struct
 
       | None -> loop ()
     in
-    loop ()
+    loop ();
+    mouse
 
 end

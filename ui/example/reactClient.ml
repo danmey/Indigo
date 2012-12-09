@@ -114,88 +114,15 @@ module Client = struct
 
   type action = { window : Window.t;
                   action : action_type }
-  let on_event =
-    let button_down = ref false in
-    let current_action = ref None in
-    fun window ->
-      function
+  open UIsig
+  let connect { left_button
+              ; right_button
+              ; mid_button
+              ; position
+              ; press
+              ; release } =
 
-      | E.MouseDown (_,(abs_x, abs_y)) ->
-
-        button_down := true;
-
-        M.pick_window ~abs_x ~abs_y
-        |> O.may (fun window ->
-          let rel_x, rel_y = Window.relative_coord ~abs_x ~abs_y window in
-
-          if Window.is_root window
-          then M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
-          else
-            match dispatch_action ~rel_x ~rel_y ~mpos_x:abs_x ~mpos_y:abs_y window with
-            | Some Close -> M.close_window window
-
-            | Some ((Move _) as action) ->
-              M.set_window_topl window;
-              current_action := Some { action; window }
-
-            | Some action ->
-              current_action := Some { action; window }
-
-            | None -> M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
-        )
-
-      | E.MouseUp (_, (abs_x, abs_y)) ->
-
-        button_down := false;
-
-        !current_action
-        |> O.may (fun {action; window} ->
-          M.pick_window_skip ~abs_x ~abs_y ~skip:window
-          |> O.may (fun parent ->
-            current_action := None;
-            M.set_window_parent ~parent window)
-        )
-
-
-      | E.MouseMove (_, (abs_x, abs_y)) ->
-        if !button_down then
-          match !current_action with
-          | Some action ->
-            begin match action.action with
-
-            | Move (dx, dy) ->
-              let rel_x, rel_y = abs_x - dx, abs_y - dy in
-              Window.set_pos ~rel_x ~rel_y action.window
-
-            | Resize (Left, (dx, dy, width)) ->
-              let old_x = Window.x_coord action.window in
-              let rel_x, rel_y = abs_x - dx, dy in
-              let dw = old_x - rel_x in
-              Window.set_pos ~rel_x ~rel_y action.window;
-              Window.add_width action.window dw;
-
-            | Resize (Bottom, (dx, dy, width)) ->
-              let old_y = Window.y_coord action.window in
-              let rel_x, rel_y = dx, abs_y - dy in
-              let dh = old_y - rel_y in
-              Window.set_pos ~rel_x ~rel_y action.window;
-              Window.add_height action.window dh;
-
-            | Resize (Right, (dx, dy, width)) ->
-              let width = abs_x - Window.x_coord action.window in
-              Window.set_width action.window width;
-
-            | Resize (Top, (dx, dy, width)) ->
-              let height = abs_y - Window.y_coord action.window in
-              Window.set_height action.window height;
-
-            | Close -> ()
-          end
-          | _ -> ()
-        else ()
-
-      | _ -> ()
-
+    ()
 
   let redraw_screen ~x ~y ~width ~height =
     G.synchronize();
@@ -206,9 +133,9 @@ module Client = struct
     (0,0), (G.size_x (), G.size_y ())
 end
 
-module UI = Ui.Make(Client)
+module UI = ReactUI.Make(Client)
 
-let () =
+let mouse =
   G.open_graph "";
   G.auto_synchronize false;
   M.open_screen "main";
@@ -217,5 +144,6 @@ let () =
   G.fill_rect 0 0 w h;
   G.synchronize();
   G.synchronize();
-  UI.event_loop ();
-  G.close_graph ()
+  let mouse = UI.event_loop () in
+  G.close_graph ();
+  mouse
