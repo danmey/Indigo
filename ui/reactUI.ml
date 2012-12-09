@@ -17,18 +17,29 @@ module Make(Client : UIsig.REACT_CLIENT) = struct
     let position, send_position = React.S.create (0,0)
     let press, send_press = React.E.create ()
     let release, send_release = React.E.create ()
-
+    let start_hover, send_start_hover = React.E.create ()
+    let end_hover, send_end_hover = React.E.create ()
+    let start_focus, send_start_focus = React.E.create ()
+    let end_focus, send_end_focus = React.E.create ()
   end
 
   let event_loop () =
     let (x, y), (width, height) = Client.screen_rect () in
+
     let screen = Manager.current_screen () in
-    let mouse = Mouse.(UIsig.({ left_button
-                ; right_button
-                ; mid_button
-                ; position
-                ; press
-                ; release })) in
+
+    let mouse = Mouse.(UIsig.(
+      { left_button
+      ; right_button
+      ; mid_button
+      ; position
+      ; press
+      ; release
+      ; start_hover
+      ; end_hover
+      ; start_focus
+      ; end_focus
+      })) in
 
     Client.connect mouse;
     Client.redraw_screen ~x ~y ~width ~height;
@@ -51,9 +62,7 @@ module Make(Client : UIsig.REACT_CLIENT) = struct
       | Some event ->
 
         let abs_x, abs_y = Event.position event in
-        let window = Manager.pick_window ~abs_x ~abs_y in
-
-        do_event event;
+        Manager.pick_window ~abs_x ~abs_y |> O.may (fun window -> do_event event);
 
         List.iter (fun window ->
           let x, y = Window.absolute_coord ~rel_x:0 ~rel_y:0 window in

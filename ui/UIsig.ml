@@ -11,12 +11,18 @@ end
 type button = Left | Right | Middle
 type position = int * int
 
-type mouse = { left_button : bool React.S.t
-             ; right_button : bool React.S.t
-             ; mid_button : bool React.S.t
-             ; position : position React.S.t
-             ; press : button React.E.t
-             ; release : button React.E.t }
+type mouse =
+    { left_button  : bool React.S.t
+    ; right_button : bool React.S.t
+    ; mid_button   : bool React.S.t
+    ; press        : button React.E.t
+    ; release      : button React.E.t
+    ; position     : position React.S.t
+    ; start_hover  : Window.t React.E.t
+    ; end_hover    : Window.t React.E.t
+    ; start_focus  : Window.t React.E.t
+    ; end_focus    : Window.t React.E.t
+    }
 
 module type REACT_CLIENT = sig
 
