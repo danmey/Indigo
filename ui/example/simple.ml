@@ -2,8 +2,8 @@ open Batteries
 
 module P = Pos.Int
 module O = BatOption
-
 module R = Rect.Int
+
 module G = Graphics
 module E = Event
 module M = Manager
@@ -129,7 +129,14 @@ module Client = struct
         else
           begin match dispatch_action ~rel_x ~rel_y ~mpos_x:abs_x ~mpos_y:abs_y window with
           | Some Close -> M.close_window window
-          | Some action -> current_action := Some { action; window }
+
+          | Some ((Move _) as action) ->
+            M.set_window_topl window;
+            current_action := Some { action; window }
+
+          | Some action ->
+            current_action := Some { action; window }
+
           | None -> M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
           end
 
@@ -199,7 +206,7 @@ let () =
   G.auto_synchronize false;
   M.open_screen "main";
   G.set_color G.black;
-  let _, (w, h) = (0,0), (G.size_x (),G.size_y ()) in
+  let _, (w, h) = (0,0), (G.size_x (), G.size_y ()) in
   G.fill_rect 0 0 w h;
   G.synchronize();
   G.synchronize();
