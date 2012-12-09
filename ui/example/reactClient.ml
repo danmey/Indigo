@@ -122,7 +122,12 @@ module Client = struct
               ; press
               ; release } =
 
-    ()
+    let e =
+      React.S.sample
+        (fun button (rel_x, rel_y) ->
+          M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:((M.current_screen()).Screen.root)) press position
+    in
+    e
 
   let redraw_screen ~x ~y ~width ~height =
     G.synchronize();

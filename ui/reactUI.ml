@@ -8,9 +8,6 @@ module Make(Client : UIsig.REACT_CLIENT) = struct
 
   module Mouse = struct
 
-    type button = Left | Right | Middle
-    type position = int * int
-
     let left_button, send_left_button = React.S.create false
     let right_button, send_right_button = React.S.create false
     let mid_button, send_mid_button = React.S.create false
@@ -21,6 +18,7 @@ module Make(Client : UIsig.REACT_CLIENT) = struct
     let end_hover, send_end_hover = React.E.create ()
     let start_focus, send_start_focus = React.E.create ()
     let end_focus, send_end_focus = React.E.create ()
+
   end
 
   let event_loop () =
@@ -39,17 +37,20 @@ module Make(Client : UIsig.REACT_CLIENT) = struct
       ; end_hover
       ; start_focus
       ; end_focus
-      })) in
+      }))
+    in
 
-    Client.connect mouse;
+    let e = Client.connect mouse in
     Client.redraw_screen ~x ~y ~width ~height;
     Screen.set_size screen ~width ~height;
 
     let do_event = function
     | E.MouseDown ((), position) ->
-      Mouse.send_left_button true
+      Mouse.send_left_button true;
+      Mouse.send_press UIsig.Left
     | E.MouseUp ((), position) ->
-      Mouse.send_left_button false
+      Mouse.send_left_button false;
+      Mouse.send_release UIsig.Left
     | E.MouseMove ((), position) ->
       Mouse.send_position position
     | _ -> () in
@@ -62,6 +63,7 @@ module Make(Client : UIsig.REACT_CLIENT) = struct
       | Some event ->
 
         let abs_x, abs_y = Event.position event in
+
         Manager.pick_window ~abs_x ~abs_y |> O.may (fun window -> do_event event);
 
         List.iter (fun window ->
@@ -86,6 +88,6 @@ module Make(Client : UIsig.REACT_CLIENT) = struct
       | None -> loop ()
     in
     loop ();
-    mouse
+    mouse,e
 
 end

@@ -1,4 +1,5 @@
 module type CLIENT = sig
+
   val poll_event : unit -> Event.prim option
   val is_end_session : Event.window -> bool
   val repaint_window : x:int -> y:int -> width:int -> height:int -> clip:Rect.Int.t option -> unit
@@ -6,6 +7,7 @@ module type CLIENT = sig
   val screen_rect : unit -> (int * int) * (int * int)
 
   val on_event : Window.t option -> Event.window -> unit
+
 end
 
 type button = Left | Right | Middle
@@ -31,7 +33,7 @@ module type REACT_CLIENT = sig
   val repaint_window : x:int -> y:int -> width:int -> height:int -> clip:Rect.Int.t option -> unit
   val redraw_screen : x:int -> y:int -> width:int -> height:int -> unit
   val screen_rect : unit -> (int * int) * (int * int)
-  val connect : mouse -> unit
+  val connect : mouse -> unit React.E.t
 
 end
 
