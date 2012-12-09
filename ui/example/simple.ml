@@ -92,10 +92,12 @@ module Client = struct
       | E.MouseMove (_, (abs_x, abs_y)) ->
         begin match !dragging_window with
         | Some window when !button_down ->
+          let abs_x, abs_y = abs_x - fst !dragging_pos, abs_y - snd !dragging_pos in
           Window.set_pos ~abs_x ~abs_y window
         | _ -> ()
         end
       | _ -> ()
+
   let redraw_screen ~x ~y ~width ~height =
     G.synchronize();
     G.set_color G.black;
