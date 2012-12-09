@@ -42,6 +42,12 @@ let open_window ~rel_x ~rel_y ~w ~h ?parent name =
           window.parent <- parent);
   Window.print Format.std_formatter ((current_screen ()).Screen.root)
 
+let close_window window =
+  (match window.Window.parent with
+  | Some parent -> parent.Window.children <- List.filter ((!=) window) parent.Window.children
+  | None -> ());
+  Screen.change_zorder (current_screen ()) Zorder.remove window
+
 let pick_window_skip ~abs_x ~abs_y ?skip =
   let screen = current_screen () in
   let rec loop = function

@@ -85,12 +85,12 @@ module Client = struct
 
   let region_actions =
     let border = 5 in
-    [(fun x y w h -> x <= border), Cresize Left;
-     (fun x y w h -> x >= w-border && x <= w), Cresize Right;
-     (fun x y w h -> y >= 0 && y <= border), Cresize Bottom;
-     (fun x y w h -> y >= h-border && y <= h), Cresize Top;
-     (fun x y w h -> x >= 0 && x <= 16 && y >= h-border), Cclose;
-     (fun x y w h -> true), Cmove]
+    [ (fun x y w h -> x <= 16 && y >= h-16), Cclose;
+      (fun x y w h -> x <= border), Cresize Left;
+      (fun x y w h -> x >= w-border && x <= w), Cresize Right;
+      (fun x y w h -> y >= 0 && y <= border), Cresize Bottom;
+      (fun x y w h -> y >= h-border && y <= h), Cresize Top;
+      (fun x y w h -> true), Cmove]
 
   let dispatch_action ~rel_x ~rel_y ~mpos_x ~mpos_y window =
     let x, y = rel_x, rel_y in
@@ -104,7 +104,7 @@ module Client = struct
       if pred x y w h then
         Some (match cmd with
         | Cresize border -> Resize (border, border_coord border)
-        | Cmove -> Move (rel_x,rel_y)
+        | Cmove -> Move (rel_x, rel_y)
         | Cclose -> Close
         | Ctoplevel -> Toplevel)
       else dispatch rest
@@ -128,6 +128,7 @@ module Client = struct
           M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
         else
           begin match dispatch_action ~rel_x ~rel_y ~mpos_x:abs_x ~mpos_y:abs_y window with
+          | Some Close -> M.close_window window
           | Some action -> current_action := Some { action; window }
           | None -> M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
           end
@@ -145,29 +146,36 @@ module Client = struct
       | E.MouseMove (_, (abs_x, abs_y)) ->
         if !button_down then
           match !current_action with
-          | Some action -> begin match action.action with
+          | Some action ->
+            begin match action.action with
+
             | Move (dx, dy) ->
               let rel_x, rel_y = abs_x - dx, abs_y - dy in
               Window.set_pos ~rel_x ~rel_y action.window
+
             | Resize (Left, (dx, dy, width)) ->
-              let old_x, _ = Window.position action.window in
+              let old_x = Window.x_coord action.window in
               let rel_x, rel_y = abs_x - dx, dy in
               let dw = old_x - rel_x in
               Window.set_pos ~rel_x ~rel_y action.window;
               Window.add_width action.window dw;
+
             | Resize (Bottom, (dx, dy, width)) ->
-              let _, old_y = Window.position action.window in
+              let old_y = Window.y_coord action.window in
               let rel_x, rel_y = dx, abs_y - dy in
               let dh = old_y - rel_y in
               Window.set_pos ~rel_x ~rel_y action.window;
               Window.add_height action.window dh;
+
             | Resize (Right, (dx, dy, width)) ->
               let width = abs_x - Window.x_coord action.window in
               Window.set_width action.window width;
+
             | Resize (Top, (dx, dy, width)) ->
               let height = abs_y - Window.y_coord action.window in
               Window.set_height action.window height;
-            | _ -> ()
+
+            | Close -> ()
           end
           | _ -> ()
         else ()
