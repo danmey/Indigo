@@ -70,9 +70,7 @@ let set_window_topl window =
 
 let set_window_parent window ~parent =
   let abs_x, abs_y = Window.absolute_coord ~rel_x:0 ~rel_y:0 window in
-  Format.fprintf Format.std_formatter "ABS: %d %d\n@." abs_x abs_y;
-  window.Window.parent <- Some parent;
   let rel_x, rel_y = Window.relative_coord ~abs_x ~abs_y parent in
+  window.Window.parent <- Some parent;
   Window.set_pos ~rel_x ~rel_y window;
-  Format.fprintf Format.std_formatter "REL: %d %d\n@." rel_x rel_y;
   Screen.change_zorder (current_screen ()) (Zorder.push_after parent) window

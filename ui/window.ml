@@ -88,5 +88,15 @@ let set_pos ~rel_x ~rel_y window =
   window.rel_x <- rel_x;
   window.rel_y <- rel_y
 
+let set_abs_pos ~abs_x ~abs_y window =
+  let rel_x, rel_y = relative_coord ~abs_x ~abs_y window in
+  set_pos ~rel_x ~rel_y window
+
 let set_parent ~parent window =
   window.parent <- Some parent
+
+let is_root window = window.parent = None
+
+let move ~dx ~dy window =
+  window.rel_x <- window.rel_x + dx;
+  window.rel_y <- window.rel_y + dy

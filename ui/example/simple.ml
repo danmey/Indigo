@@ -1,3 +1,5 @@
+open Batteries
+
 module P = Pos.Int
 module O = BatOption
 
@@ -63,41 +65,99 @@ module Client = struct
     rect (x+w-16,y+h-16,16,16);
     rect (x,y,w,h)
 
+  type border =
+    | Left
+    | Right
+    | Top
+    | Bottom
 
+  type action_type =
+    | Resize of border * (int * int)
+    | Move of (int * int)
+    | Toplevel
+    | Close
+
+  type command =
+    | Cresize of border
+    | Cmove
+    | Ctoplevel
+    | Cclose
+
+  let region_actions =
+    let border = 5 in
+    [(fun x y w h -> x >= 0 && x <= border), Cresize Left;
+     (fun x y w h -> x >= w-border && x <= w), Cresize Right;
+     (fun x y w h -> y >= 0 && y <= border), Cresize Bottom;
+     (fun x y w h -> y >= h-border && y <= h), Cresize Top;
+     (fun x y w h -> x >= 0 && x <= 16 && y >= h-border), Cclose;
+     (fun x y w h -> true), Cmove]
+
+  let dispatch_action ~rel_x ~rel_y window =
+    let x, y, w, h = Window.abs_rect window |> Rect.Int.coords in
+    let rec dispatch = function
+    | (pred, cmd) :: rest ->
+      let border_coord = function
+      | Left | Right -> x,w
+      | Top | Bottom -> y,h
+      in
+      if pred x y w h then
+        Some (match cmd with
+        | Cresize border -> Resize (border, border_coord border)
+        | Cmove -> Move (rel_x,rel_y)
+        | Cclose -> Close
+        | Ctoplevel -> Toplevel)
+      else dispatch rest
+    | [] -> None
+    in
+    dispatch region_actions
+
+  type action = { window : Window.t;
+                  action : action_type }
   let on_event =
     let button_down = ref false in
-    let dragging_window = ref None in
-    let dragging_pos = ref (0,0) in
+    let current_action = ref None in
     fun window ->
       function
+
       | E.MouseDown (_,(abs_x, abs_y)) ->
         button_down := true;
         let window = M.pick_window ~abs_x ~abs_y in
         let rel_x, rel_y = Window.relative_coord ~abs_x ~abs_y window in
-        if rel_y > window.Window.height - 16 then begin
-          Manager.set_window_topl window;
-          dragging_window := Some window;
-          dragging_pos := (rel_x, rel_y)
-        end else
+        if Window.is_root window then
           M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
+        else
+          begin match dispatch_action ~rel_x ~rel_y window with
+          | Some action -> current_action := Some { action; window }
+          | None -> M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
+          end
+
       | E.MouseUp (_, (abs_x, abs_y)) ->
         button_down := false;
-        begin match !dragging_window with
-        | Some window ->
-          dragging_window := None;
+        begin match !current_action with
+        | Some {action; window} ->
+          current_action := None;
           let parent = M.pick_window_skip ~abs_x ~abs_y ~skip:window in
           M.set_window_parent ~parent window
         | None -> ()
         end
+
       | E.MouseMove (_, (abs_x, abs_y)) ->
-        begin match !dragging_window with
-        | Some window when !button_down ->
-          let rel_x, rel_y =
-            abs_x - fst !dragging_pos, abs_y - snd !dragging_pos in
-          Window.set_pos ~rel_x ~rel_y window
-        | _ -> ()
-        end
+        if !button_down then
+          match !current_action with
+          | Some action -> begin match action.action with
+            | Move (dx, dy) ->
+              let rel_x, rel_y = abs_x - dx, abs_y - dy in
+              Window.set_pos ~rel_x ~rel_y action.window
+            | Resize (Left, (x, width)) ->
+              let dx, dy = abs_x - x, 0 in
+              Window.move ~dx ~dy action.window
+            | _ -> ()
+          end
+          | _ -> ()
+        else ()
+
       | _ -> ()
+
 
   let redraw_screen ~x ~y ~width ~height =
     G.synchronize();

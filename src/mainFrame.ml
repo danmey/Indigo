@@ -113,7 +113,7 @@ let create () =
 
             update_display (module Window : Sig) ();
             send (Protocol.Server (Protocol.RequestUserList));
-        (* Main loop: *)
+            (* Main loop: *)
             waiter);
     in
     let login_data = Login.create () in
