@@ -27,13 +27,13 @@ let calc_coord f x y window =
   | Some window -> visit (f x window.rel_x) (f y window.rel_y) window.parent
   | None -> x, y
   in
-  visit x y (Some window)
+  visit x y window
 
 let relative_coord ~abs_x ~abs_y window =
-  calc_coord (-) abs_x abs_y window
+  calc_coord (-) abs_x abs_y (Some window)
 
 let absolute_coord ~rel_x ~rel_y window =
-  calc_coord (+) rel_x rel_y window
+  calc_coord (+) rel_x rel_y (Some window)
 
 (* let pick ~abs_x ~abs_y window = *)
 (*   let rec visit acc = function *)
@@ -84,9 +84,9 @@ let print ppf window =
   visit ppf window;
   fprintf ppf "=======@."
 
-let set_pos ~abs_x ~abs_y window =
-  window.rel_x <- abs_x;
-  window.rel_y <- abs_y
+let set_pos ~rel_x ~rel_y window =
+  window.rel_x <- rel_x;
+  window.rel_y <- rel_y
 
 let set_parent ~parent window =
   window.parent <- Some parent
