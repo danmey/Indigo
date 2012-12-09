@@ -86,13 +86,14 @@ module Client = struct
         | Some window ->
           dragging_window := None;
           let parent = M.pick_window_skip ~abs_x ~abs_y ~skip:window in
-          Manager.set_window_parent ~parent window
+          M.set_window_parent ~parent window
         | None -> ()
         end
       | E.MouseMove (_, (abs_x, abs_y)) ->
         begin match !dragging_window with
         | Some window when !button_down ->
-          let abs_x, abs_y = abs_x - fst !dragging_pos, abs_y - snd !dragging_pos in
+          let abs_x, abs_y =
+            abs_x - fst !dragging_pos, abs_y - snd !dragging_pos in
           Window.set_pos ~abs_x ~abs_y window
         | _ -> ()
         end
