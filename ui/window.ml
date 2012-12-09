@@ -56,6 +56,9 @@ let abs_rect window =
   let x, y = absolute_coord ~rel_x:0 ~rel_y:0 window in
   Rect.Int.rect (x,y) (window.width, window.height)
 
+let rel_rect window =
+  Rect.Int.rect (window.rel_x,window.rel_y) (window.width, window.height)
+
 let print ppf window =
   let open Format in
   let rec visit ppf ({rel_x; rel_y; width; height; children; parent} as window) =
@@ -100,3 +103,18 @@ let is_root window = window.parent = None
 let move ~dx ~dy window =
   window.rel_x <- window.rel_x + dx;
   window.rel_y <- window.rel_y + dy
+
+let width window = window.width
+let height window = window.height
+
+let x_coord window = window.rel_x
+let y_coord window = window.rel_y
+
+let position window = x_coord window, y_coord window
+let size window = width window, height window
+
+let set_width window width = window.width <- width
+let set_height window height = window.height <- height
+
+let add_width window n = window.width <- window.width + n
+let add_height window n = window.height <- window.height + n
