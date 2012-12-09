@@ -123,11 +123,12 @@ module Client = struct
       | E.MouseDown (_,(abs_x, abs_y)) ->
         button_down := true;
         let window = M.pick_window ~abs_x ~abs_y in
+        O.may (fun window ->
         let rel_x, rel_y = Window.relative_coord ~abs_x ~abs_y window in
         if Window.is_root window then
           M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
         else
-          begin match dispatch_action ~rel_x ~rel_y ~mpos_x:abs_x ~mpos_y:abs_y window with
+          match dispatch_action ~rel_x ~rel_y ~mpos_x:abs_x ~mpos_y:abs_y window with
           | Some Close -> M.close_window window
 
           | Some ((Move _) as action) ->
@@ -138,15 +139,16 @@ module Client = struct
             current_action := Some { action; window }
 
           | None -> M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
-          end
+          ) window
 
       | E.MouseUp (_, (abs_x, abs_y)) ->
         button_down := false;
         begin match !current_action with
         | Some {action; window} ->
-          current_action := None;
           let parent = M.pick_window_skip ~abs_x ~abs_y ~skip:window in
-          M.set_window_parent ~parent window
+          O.may (fun parent ->
+            current_action := None;
+            M.set_window_parent ~parent window) parent
         | None -> ()
         end
 
@@ -196,7 +198,7 @@ module Client = struct
     G.fill_rect x y width height
 
   let screen_rect () =
-    (0,0), (G.size_x (),G.size_y ())
+    (0,0), (G.size_x (), G.size_y ())
 end
 
 module UI = Ui.Make(Client)

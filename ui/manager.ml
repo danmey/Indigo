@@ -59,11 +59,11 @@ let pick_window_skip ~abs_x ~abs_y ?skip =
       && rel_y >= 0
       && rel_y < window.Window.height then
       match skip with
-      | None -> window
-      | Some skip when skip != window -> window
+      | None -> Some window
+      | Some skip when skip != window -> Some window
       | _ -> loop rest
     else loop rest
-  | [] -> raise Not_found
+  | [] -> None
   in
   loop (Zorder.rev_order (current_screen()).Screen.zorder)
 
