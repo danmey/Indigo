@@ -123,23 +123,20 @@ module Client = struct
       | E.MouseDown (_,(abs_x, abs_y)) ->
         button_down := true;
         let window = M.pick_window ~abs_x ~abs_y in
-        O.may (fun window ->
-        let rel_x, rel_y = Window.relative_coord ~abs_x ~abs_y window in
-        if Window.is_root window then
-          M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
-        else
-          match dispatch_action ~rel_x ~rel_y ~mpos_x:abs_x ~mpos_y:abs_y window with
-          | Some Close -> M.close_window window
+        window |> O.may (fun window ->
+          let rel_x, rel_y = Window.relative_coord ~abs_x ~abs_y window in
 
-          | Some ((Move _) as action) ->
-            M.set_window_topl window;
-            current_action := Some { action; window }
-
-          | Some action ->
-            current_action := Some { action; window }
-
-          | None -> M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
-          ) window
+          if Window.is_root window
+          then M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
+          else match dispatch_action ~rel_x ~rel_y ~mpos_x:abs_x ~mpos_y:abs_y window with
+            | Some Close -> M.close_window window
+            | Some ((Move _) as action) ->
+              M.set_window_topl window;
+              current_action := Some { action; window }
+            | Some action ->
+              current_action := Some { action; window }
+            | None -> M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
+        )
 
       | E.MouseUp (_, (abs_x, abs_y)) ->
         button_down := false;
