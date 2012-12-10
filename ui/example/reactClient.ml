@@ -146,12 +146,11 @@ module UI = ReactUI.Make(Client)
 
 let mouse =
   G.open_graph "";
+  let width, height = G.size_x (), G.size_y () in
   G.auto_synchronize false;
-  M.open_screen "main" ~width:(G.size_x ()) ~height:(G.size_y ());
+  M.open_screen "main" ~width ~height;
   G.set_color G.black;
-  let _, (w, h) = (0,0), (G.size_x (), G.size_y ()) in
-  G.fill_rect 0 0 w h;
-  G.synchronize();
+  G.fill_rect 0 0 width height;
   G.synchronize();
   let mouse = UI.event_loop () in
   G.close_graph ();
