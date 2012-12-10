@@ -1,47 +1,48 @@
-module type UI = sig end
+open Batteries
+module O = Option
+
 type t = { mutable screens : Screen.t list
          ; mutable current_screen : Screen.t option
-         ; pending_events : unit Event.t Queue.t
-         ; mutable event_receivers : EventReceiver.t list }
+         ; pending_events : unit Event.t Queue.t }
 
 let manager = { screens = []
               ; current_screen = None
-              ; pending_events = Queue.create ()
-              ; event_receivers = [] }
+              ; pending_events = Queue.create () }
+
 
 let current_screen () =
   match manager.current_screen with
   | None -> failwith "No screen"
   | Some screen -> screen
 
-let open_screen name =
-  let screen = Screen.create name in
+let current_root () = current_screen () |> Screen.root
+
+let open_screen name ~width ~height =
+  let root = Window.create ~width ~height () in
+  let screen = Screen.create name ~root in
   manager.screens <- screen :: manager.screens;
-  match manager.current_screen with
+  (match manager.current_screen with
   | None -> manager.current_screen <- Some screen
-  | Some _ -> ()
+  | Some _ -> ())
 
-let open_window ~rel_x ~rel_y ~w ~h ?parent name =
+let open_window ~rel_x ~rel_y ~width ~height ?parent name =
+  let open Window in
+
   let screen = current_screen() in
-  let window = Window.create () in
+  let window = Window.create ~rel_x ~rel_y ~width ~height () in
+  let parent = O.default (current_root ()) parent in
+  let cw, ch = parent.width, parent.height in
+  let w, h = cw - rel_x, ch - rel_y in
 
-  Window.(window.rel_x <- rel_x;
-          window.rel_y <- rel_y;
-          window.width <- w;
-          window.height <- h;
-          (match parent with
-          | Some parent ->
-            parent.children <- window :: parent.children;
-            let cw, ch = parent.width, parent.height in
-            let w = cw - window.rel_x in
-            let h = ch - window.rel_y in
-            window.width <- if w >= window.width then window.width else w;
-            window.height <- if h >= window.height then window.height else h;
-            Screen.add_window screen parent window
-          | None -> ());
-          window.parent <- parent);
+  window.rel_x <- rel_x;
+  window.rel_y <- rel_y;
+  set_parent ~parent window;
+  parent.children <- window :: parent.children;
+  window.width <- if w >= window.width then window.width else w;
+  window.height <- if h >= window.height then window.height else h;
 
-  Window.print Format.std_formatter ((current_screen ()).Screen.root)
+  Screen.add_window screen parent window;
+  print Format.std_formatter (Screen.root (current_screen ()))
 
 let close_window window =
   (match window.Window.parent with

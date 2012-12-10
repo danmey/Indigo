@@ -129,7 +129,7 @@ module Client = struct
           let rel_x, rel_y = Window.relative_coord ~abs_x ~abs_y window in
 
           if Window.is_root window
-          then M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
+          then M.open_window ~rel_x ~rel_y ~width:100 ~height:100 "test" ~parent:window
           else
             match dispatch_action ~rel_x ~rel_y ~mpos_x:abs_x ~mpos_y:abs_y window with
             | Some Close -> M.close_window window
@@ -141,7 +141,7 @@ module Client = struct
             | Some action ->
               current_action := Some { action; window }
 
-            | None -> M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:window
+            | None -> M.open_window ~rel_x ~rel_y ~width:100 ~height:100 "test" ~parent:window
         )
 
       | E.MouseUp (_, (abs_x, abs_y)) ->

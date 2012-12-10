@@ -10,11 +10,11 @@ type t = { mutable rel_x : int
          ; mutable depth : int
          ; mutable enabled : bool }
 
-let create () =
-  { rel_x = 0;
-    rel_y = 0;
-    width = 0;
-    height = 0;
+let create ?(rel_x=0) ?(rel_y=0) ~width ~height () =
+  { rel_x;
+    rel_y;
+    width;
+    height;
     dirty = true;
     children = [];
     parent = None;
@@ -104,14 +104,14 @@ let move ~dx ~dy window =
   window.rel_x <- window.rel_x + dx;
   window.rel_y <- window.rel_y + dy
 
-let width window = window.width
-let height window = window.height
+let get_width window = window.width
+let get_height window = window.height
 
 let x_coord window = window.rel_x
 let y_coord window = window.rel_y
 
 let position window = x_coord window, y_coord window
-let size window = width window, height window
+let size window = get_width window, get_height window
 
 
 let set_width window width = window.width <- width

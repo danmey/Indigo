@@ -115,6 +115,11 @@ module Client = struct
   type action = { window : Window.t;
                   action : action_type }
   open UIsig
+
+  let react_nodes = Hashtbl.create 13
+
+  let term n = Hashtbl.add react_nodes n ()
+
   let connect { left_button
               ; right_button
               ; mid_button
@@ -122,12 +127,11 @@ module Client = struct
               ; press
               ; release } =
 
-    let e =
-      React.S.sample
-        (fun button (rel_x, rel_y) ->
-          M.open_window ~rel_x ~rel_y ~w:100 ~h:100 "test" ~parent:((M.current_screen()).Screen.root)) press position
-    in
-    e
+    let t = term in
+    t (React.S.sample
+      (fun button (rel_x, rel_y) ->
+        M.open_window ~rel_x ~rel_y ~width:100 ~height:100 "test" ~parent:((M.current_screen()).Screen.root)) press position)
+
 
   let redraw_screen ~x ~y ~width ~height =
     G.synchronize();
@@ -143,7 +147,7 @@ module UI = ReactUI.Make(Client)
 let mouse =
   G.open_graph "";
   G.auto_synchronize false;
-  M.open_screen "main";
+  M.open_screen "main" ~width:(G.size_x ()) ~height:(G.size_y ());
   G.set_color G.black;
   let _, (w, h) = (0,0), (G.size_x (), G.size_y ()) in
   G.fill_rect 0 0 w h;

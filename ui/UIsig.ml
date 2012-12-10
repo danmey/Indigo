@@ -23,8 +23,7 @@ type mouse =
     ; start_hover  : Window.t React.E.t
     ; end_hover    : Window.t React.E.t
     ; start_focus  : Window.t React.E.t
-    ; end_focus    : Window.t React.E.t
-    }
+    ; end_focus    : Window.t React.E.t }
 
 module type REACT_CLIENT = sig
 
@@ -33,7 +32,7 @@ module type REACT_CLIENT = sig
   val repaint_window : x:int -> y:int -> width:int -> height:int -> clip:Rect.Int.t option -> unit
   val redraw_screen : x:int -> y:int -> width:int -> height:int -> unit
   val screen_rect : unit -> (int * int) * (int * int)
-  val connect : mouse -> unit React.E.t
+  val connect : mouse -> unit
 
 end
 
