@@ -1,6 +1,6 @@
 open Batteries
 
-module P = Pos.Int
+module P = Point.Int
 module O = BatOption
 module R = Rect.Int
 

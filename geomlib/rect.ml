@@ -28,7 +28,7 @@ module Make(T :
     val two : t
   end) = struct
 
-  module Pos = Pos.Make(T)
+  module Point = Point.Make(T)
 
   open T
 
@@ -40,7 +40,7 @@ module Make(T :
   let subr r1 r2 =
     let p1 = pos r1 in
     let p2 = pos r2 in
-    rect (Pos.sub p2 p1) (size r1)
+    rect (Point.sub p2 p1) (size r1)
   let set_pos r (x,y) = r.x <- x; r.y <- y
   let is_in r (x,y) = x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h
   let together r1 r2 =

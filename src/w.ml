@@ -60,7 +60,7 @@ and find_window pos' =
   List.rev (loop (desktop.pos) desktop)
 
 and client_pos window global_pos =
-  Pos.sub global_pos (Rect.pos (abs_pos window))
+  Point.sub global_pos (Rect.pos (abs_pos window))
 
 and abs_pos window =
   let desktop = Lazy.force desktop in

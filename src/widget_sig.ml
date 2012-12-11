@@ -18,7 +18,7 @@ module type PAINTER = sig
 end
 
 module type STATE = sig
-  type t = Normal | Pressed | Start of Timestamp.t | Dragging of Pos.t
+  type t = Normal | Pressed | Start of Timestamp.t | Dragging of Point.t
   val initial : t
 end
 
@@ -26,7 +26,7 @@ module type EVENT = sig
   val press : EventInfo.Mouse.Press.t React.E.t
   val release : EventInfo.Mouse.Press.t React.E.t
   val paint : (Cairo.context * Rect.t * Timestamp.t) React.E.t
-  val motion : (Pos.t * Pos.t) React.E.t
+  val motion : (Point.t * Point.t) React.E.t
   val time : Timestamp.t React.S.t
 end
 
@@ -57,12 +57,12 @@ end = struct
 end and M : sig
 type message =
   | PlaceWidget of (module Wrap.Make1) * Rect.t
-  | MoveWidget of Pos.t
+  | MoveWidget of Point.t
   | Nil
 end = struct
 type message =
   | PlaceWidget of (module Wrap.Make1) * Rect.t
-  | MoveWidget of Pos.t
+  | MoveWidget of Point.t
   | Nil
 end
 

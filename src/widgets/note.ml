@@ -46,7 +46,7 @@ module Make(L : LAYOUT)(P : PAINTER)(E : EVENT) : S = struct
     React.E.fmap (fun x -> x)
       (React.S.sample
       (fun (global_pos,pos) -> function
-        | State.Dragging pos' -> Some (MoveWidget (Pos.sub global_pos pos'))
+        | State.Dragging pos' -> Some (MoveWidget (Point.sub global_pos pos'))
         | a -> None) E.motion state)
 
 end
