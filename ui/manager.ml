@@ -25,7 +25,7 @@ let open_screen name ~width ~height =
   | None -> manager.current_screen <- Some screen
   | Some _ -> ())
 
-let open_window ~rel_x ~rel_y ~width ~height ?parent name =
+let open_window ~rel_x ~rel_y ~width ~height ?parent ?name () =
   let open Window in
 
   let screen = current_screen() in

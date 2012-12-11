@@ -125,12 +125,31 @@ module Client = struct
               ; mid_button
               ; position
               ; press
-              ; release } =
+              ; release
+              ; hover
+              ; start_hover
+              } =
 
     let t = term in
-    t (React.S.sample
-      (fun button (rel_x, rel_y) ->
-        M.open_window ~rel_x ~rel_y ~width:100 ~height:100 "test" ~parent:((M.current_screen()).Screen.root)) press position)
+
+    let drag = React.S.when_ left_button None (React.S.map O.Monad.return position) in
+
+    t (React.S.map
+         (function
+         | Some (rel_x, rel_y) ->
+           let window = React.S.value hover in
+           Window.set_pos ~rel_x ~rel_y window;
+           Printf.printf "POS: %d %d\n" rel_x rel_y
+         | None -> ()
+         ) drag);
+
+    t (React.S.hold ()
+         (
+           React.S.sample
+             (fun button (rel_x, rel_y) ->
+               M.open_window ~rel_x ~rel_y ~width:100 ~height:100 ()
+             ) press position
+         ))
 
 
   let redraw_screen ~x ~y ~width ~height =

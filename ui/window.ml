@@ -113,7 +113,6 @@ let y_coord window = window.rel_y
 let position window = x_coord window, y_coord window
 let size window = get_width window, get_height window
 
-
 let set_width window width = window.width <- width
 let set_height window height = window.height <- height
 

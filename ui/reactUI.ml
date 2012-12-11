@@ -6,33 +6,32 @@ module E = Event
 
 module Make(Client : UIsig.REACT_CLIENT) = struct
 
-  module Mouse = struct
-
-    let left_button, send_left_button = React.S.create false
-    let right_button, send_right_button = React.S.create false
-    let mid_button, send_mid_button = React.S.create false
-    let position, send_position = React.S.create (0,0)
-    let press, send_press = React.E.create ()
-    let release, send_release = React.E.create ()
-    let start_hover, send_start_hover = React.E.create ()
-    let end_hover, send_end_hover = React.E.create ()
-    let start_focus, send_start_focus = React.E.create ()
-    let end_focus, send_end_focus = React.E.create ()
-
-  end
 
   let event_loop () =
     let (x, y), (width, height) = Client.screen_rect () in
 
     let screen = Manager.current_screen () in
 
-    let mouse = Mouse.(UIsig.(
+    let left_button, send_left_button = React.S.create false in
+    let right_button, send_right_button = React.S.create false in
+    let mid_button, send_mid_button = React.S.create false in
+    let position, send_position = React.S.create (0,0) in
+    let press, send_press = React.E.create () in
+    let release, send_release = React.E.create () in
+    let hover, send_hover = React.S.create (Manager.current_root()) in
+    let start_hover, send_start_hover = React.E.create () in
+    let end_hover, send_end_hover = React.E.create () in
+    let start_focus, send_start_focus = React.E.create () in
+    let end_focus, send_end_focus = React.E.create () in
+
+    let mouse = (UIsig.(
       { left_button
       ; right_button
       ; mid_button
       ; position
       ; press
       ; release
+      ; hover
       ; start_hover
       ; end_hover
       ; start_focus
@@ -44,15 +43,16 @@ module Make(Client : UIsig.REACT_CLIENT) = struct
     Client.redraw_screen ~x ~y ~width ~height;
     Screen.set_size screen ~width ~height;
 
-    let do_event = function
+    let do_event window = function
     | E.MouseDown ((), position) ->
-      Mouse.send_left_button true;
-      Mouse.send_press UIsig.Left
+      send_left_button true;
+      send_press UIsig.Left
     | E.MouseUp ((), position) ->
-      Mouse.send_left_button false;
-      Mouse.send_release UIsig.Left
+      send_left_button false;
+      send_release UIsig.Left
     | E.MouseMove ((), position) ->
-      Mouse.send_position position
+      send_position position;
+      send_hover window
     | _ -> () in
 
     let rec loop () =
@@ -64,7 +64,7 @@ module Make(Client : UIsig.REACT_CLIENT) = struct
 
         let abs_x, abs_y = Event.position event in
 
-        Manager.pick_window ~abs_x ~abs_y |> O.may (fun window -> do_event event);
+        Manager.pick_window ~abs_x ~abs_y |> O.may (fun window -> do_event window event);
 
         List.iter (fun window ->
           let x, y = Window.absolute_coord ~rel_x:0 ~rel_y:0 window in

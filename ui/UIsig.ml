@@ -20,6 +20,7 @@ type mouse =
     ; press        : button React.E.t
     ; release      : button React.E.t
     ; position     : position React.S.t
+    ; hover        : Window.t React.S.t
     ; start_hover  : Window.t React.E.t
     ; end_hover    : Window.t React.E.t
     ; start_focus  : Window.t React.E.t
