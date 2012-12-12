@@ -17,6 +17,6 @@ true: debug
 <src/cairo2Graphics.*>: package(lablgtk2), package(cairo2.lablgtk2)
 <src/{widget_sig,window}.*>: package(cairo2)
 <src/{canvas,gtk_react,window}.*>: package(react),package(lablgtk2)
-<ui/example/*>: use_graphics
+<ui/*>: use_graphics
 <ui/**>: thread, package(threads), package(batteries), package(react)
 <geomlib/**>: thread, package(threads), package(batteries)

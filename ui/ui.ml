@@ -3,7 +3,7 @@ open Batteries
 module O = BatOption
 module R = Rect.Int
 
-module Make(Client : Sig.CLIENT) = struct
+module Make(Client : UIsig.CLIENT) = struct
 
   let event_loop () =
     let (x, y), (width, height) = Client.screen_rect () in

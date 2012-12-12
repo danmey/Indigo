@@ -16,78 +16,44 @@ module Make(Client : UIsig.REACT_CLIENT) = struct
     let right_button, send_right_button = React.S.create false in
     let mid_button, send_mid_button = React.S.create false in
     let position, send_position = React.S.create (0,0) in
-    let press, send_press = React.E.create () in
-    let release, send_release = React.E.create () in
-    let hover, send_hover = React.S.create (Manager.current_root()) in
-    let start_hover, send_start_hover = React.E.create () in
-    let end_hover, send_end_hover = React.E.create () in
-    let start_focus, send_start_focus = React.E.create () in
-    let end_focus, send_end_focus = React.E.create () in
+    let key, send_key = React.E.create () in
+    let close, send_close = React.E.create () in
 
-    let mouse = (UIsig.(
+    let events = Events.(
       { left_button
       ; right_button
       ; mid_button
       ; position
-      ; press
-      ; release
-      ; hover
-      ; start_hover
-      ; end_hover
-      ; start_focus
-      ; end_focus
-      }))
-    in
+      ; key
+      ; send_close
+      }) in
 
-    let e = Client.connect mouse in
-    Client.redraw_screen ~x ~y ~width ~height;
+    let e = Client.connect events in
+    let close = React.E.map (fun () -> exit 0) close in
+
     Screen.set_size screen ~width ~height;
 
-    let do_event window = function
+    let do_event = function
     | E.MouseDown ((), position) ->
       send_left_button true;
-      send_press UIsig.Left
     | E.MouseUp ((), position) ->
       send_left_button false;
-      send_release UIsig.Left
     | E.MouseMove ((), position) ->
       send_position position;
-      send_hover window
     | _ -> () in
 
     let rec loop () =
 
       Thread.yield();
 
-      match Client.poll_event () with
-      | Some event ->
-
-        let abs_x, abs_y = Event.position event in
-
-        Manager.pick_window ~abs_x ~abs_y |> O.may (fun window -> do_event window event);
-
-        List.iter (fun window ->
-          let x, y = Window.absolute_coord ~rel_x:0 ~rel_y:0 window in
-          let clip = O.bind (O.Monad.return -| Window.abs_rect) window.Window.parent in
-          Window.(Client.repaint_window
-                    ~x
-                    ~y
-                    ~width:window.width
-                    ~height:window.height
-                    ~clip
-          ))
-          (Manager.windows ());
-
-        let (x, y), (width, height) = Client.screen_rect () in
-
-        Client.redraw_screen ~x ~y ~width ~height;
-
-        if not (Client.is_end_session event) then
-          loop ()
-
-      | None -> loop ()
+      begin
+        match Client.poll_event () with
+        | Some event -> do_event event
+        | None -> ()
+      end;
+      loop ()
     in
     loop ();
-    mouse,e
+    events, e, close
 
 end
